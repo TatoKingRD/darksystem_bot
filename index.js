@@ -453,4 +453,70 @@ client.on('interactionCreate', async (interaction) => {
     const oyunId = interaction.fields.getTextInputValue('oyunId') || null;
     const yasNum = parseInt(yas);
 
- 
+     if (isNaN(yasNum) || yasNum < 1 || yasNum > 100) {
+      return interaction.editReply({ content: '❌ Geçerli bir yaş gir (1-100 arası).' });
+    }
+
+    const guild = interaction.guild;
+    const hedef = await guild.members.fetch(hedefId).catch(() => null);
+    if (!hedef) return interaction.editReply({ content: '❌ Kullanıcı bulunamadı.' });
+
+    const eskiBilgi = kayitVerisi.get(hedefId);
+    kayitVerisi.set(hedefId, {
+      isim, yas: yasNum, ign, oyunId,
+      neredenDuydun: eskiBilgi?.neredenDuydun || null,
+      tarih: eskiBilgi?.tarih || Math.floor(Date.now() / 1000)
+    });
+
+    const nick = ign ? `${isim} (${ign}) | ${yasNum}` : `${isim} | ${yasNum}`;
+    await hedef.setNickname(nick).catch(() => {});
+
+    const arsivKanal = guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
+    if (arsivKanal) {
+      await arsivKanal.send({ embeds: [new EmbedBuilder()
+        .setTitle('✏️ Kayıt Güncellendi')
+        .setColor(0xFFA500)
+        .addFields(
+          { name: '👤 İsim', value: isim, inline: true },
+          { name: '🎂 Yaş', value: `${yasNum}`, inline: true },
+          { name: '🎮 IGN', value: ign || 'Belirtilmedi', inline: true },
+          { name: '🎯 Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
+          { name: '🆔 Discord', value: `<@${hedefId}> (${hedef.user.tag})`, inline: false },
+          { name: '🛡️ Güncelleyen', value: `<@${interaction.user.id}>`, inline: false },
+          { name: '📅 Güncelleme Tarihi', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+        )
+        .setFooter({ text: `Kullanıcı ID: ${hedefId}` })
+        .setTimestamp()]
+      });
+    }
+
+    const logKanal = guild.channels.cache.get(process.env.LOG_KANAL_ID);
+    if (logKanal) {
+      await logKanal.send({ embeds: [new EmbedBuilder()
+        .setTitle('✏️ Kayıt Güncellendi')
+        .setColor(0xFFA500)
+        .addFields(
+          { name: '👤 Kullanıcı', value: `<@${hedefId}> (${hedef.user.tag})`, inline: false },
+          { name: '🛡️ Güncelleyen', value: `<@${interaction.user.id}>`, inline: false },
+          { name: '📝 Yeni Bilgiler', value: `İsim: ${isim} | Yaş: ${yasNum} | IGN: ${ign || 'Belirtilmedi'} | Oyun ID: ${oyunId || 'Belirtilmedi'}`, inline: false }
+        )
+        .setTimestamp()]
+      });
+    }
+
+    await interaction.editReply({ content: `✅ **${hedef.user.tag}** kullanıcısının kaydı güncellendi!` });
+  }
+});
+
+client.on('guildMemberAdd', async (member) => {
+  if (process.env.KAYITSIZ_ROL_ID) await member.roles.add(process.env.KAYITSIZ_ROL_ID).catch(console.error);
+});
+
+client.once('ready', async () => {
+  console.log(`Bot aktif: ${client.user.tag}`);
+  for (const [, guild] of client.guilds.cache) {
+    await arsivdenYukle(guild).catch(console.error);
+  }
+});
+
+client.login(process.env.BOT_TOKEN);
