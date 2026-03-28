@@ -8,10 +8,10 @@ const client = new Client({
 
 const kayitVerisi = new Map();
 
-// â”€â”€â”€ Restart'ta arÅŸivi belleÄŸe yÃ¼kle â”€â”€â”€
+// ─── Restart'ta arşivi belleğe yükle ───
 async function arsivdenYukle(guild) {
   const arsivKanal = guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
-  if (!arsivKanal) { console.log('ArÅŸiv kanalÄ± bulunamadÄ±, yÃ¼kleme atlandÄ±.'); return; }
+  if (!arsivKanal) { console.log('Arşiv kanalı bulunamadı, yükleme atlandı.'); return; }
 
   let lastId = null;
   let yuklenen = 0;
@@ -26,22 +26,22 @@ async function arsivdenYukle(guild) {
       if (msg.embeds.length === 0) continue;
       const embed = msg.embeds[0];
       const footerText = embed.footer?.text || '';
-      if (!footerText.startsWith('KullanÄ±cÄ± ID:')) continue;
+      if (!footerText.startsWith('Kullanıcı ID:')) continue;
 
-      const userId = footerText.replace('KullanÄ±cÄ± ID:', '').trim();
+      const userId = footerText.replace('Kullanıcı ID:', '').trim();
       if (!userId) continue;
-      if (kayitVerisi.has(userId)) continue; // En yeni kaydÄ± al
+      if (kayitVerisi.has(userId)) continue; // En yeni kaydı al
 
       const fields = {};
       for (const f of embed.fields) fields[f.name] = f.value;
 
-      const isim = (fields['ðŸ‘¤ Ä°sim'] || '').trim();
-      const yasStr = (fields['ðŸŽ‚ YaÅŸ'] || '0').trim();
-      const ignRaw = (fields['ðŸŽ® IGN'] || 'Belirtilmedi').trim();
+      const isim = (fields['👤 İsim'] || '').trim();
+      const yasStr = (fields['🎂 Yaş'] || '0').trim();
+      const ignRaw = (fields['🎮 IGN'] || 'Belirtilmedi').trim();
       const ign = ignRaw === 'Belirtilmedi' ? null : ignRaw;
-      const oyunIdRaw = (fields['ðŸŽ¯ Oyun ID'] || '').trim();
+      const oyunIdRaw = (fields['🎯 Oyun ID'] || '').trim();
       const oyunId = oyunIdRaw === 'Belirtilmedi' || oyunIdRaw === '' ? null : oyunIdRaw;
-      const neredenRaw = (fields['ðŸ“£ Nereden Duydun?'] || '').trim();
+      const neredenRaw = (fields['📣 Nereden Duydun?'] || '').trim();
       const neredenDuydun = neredenRaw === 'Belirtilmedi' || neredenRaw === '' ? null : neredenRaw;
 
       if (!isim) continue;
@@ -61,10 +61,10 @@ async function arsivdenYukle(guild) {
     lastId = mesajlar.last().id;
   }
 
-  console.log(`ArÅŸivden ${yuklenen} kayÄ±t belleÄŸe yÃ¼klendi.`);
+  console.log(`Arşivden ${yuklenen} kayıt belleğe yüklendi.`);
 }
 
-// â”€â”€â”€ Mesaj komutlarÄ± â”€â”€â”€
+// ─── Mesaj komutları ───
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.member?.permissions.has('Administrator')) return;
@@ -72,75 +72,75 @@ client.on('messageCreate', async (message) => {
   // !panel
   if (message.content === '!panel') {
     const embed = new EmbedBuilder()
-      .setTitle('ðŸ“‹ KayÄ±t Formu')
-      .setDescription('**Sunucumuza HoÅŸ Geldin!** ðŸŒŸ\n\nKayÄ±t olmak iÃ§in aÅŸaÄŸÄ±daki butona tÄ±kla ve formu doldur.\nKayÄ±t iÅŸlemi tamamlanÄ±nca **KayÄ±tlÄ± Ãœye** rolÃ¼ verilecektir.\n\n> âš ï¸ LÃ¼tfen gerÃ§ek bilgilerini gir. Aksi takdirde sunucumuzda Ã¶dÃ¼l kazanamazsÄ±n!')
+      .setTitle('📋 Kayıt Formu')
+      .setDescription('**Sunucumuza Hoş Geldin!** 🌟\n\nKayıt olmak için aşağıdaki butona tıkla ve formu doldur.\nKayıt işlemi tamamlanınca **Kayıtlı Üye** rolü verilecektir.\n\n> ⚠️ Lütfen gerçek bilgilerini gir. Aksi takdirde sunucumuzda ödül kazanamazsın!')
       .setColor(0x5865F2)
-      .setFooter({ text: 'KayÄ±t Sistemi' })
+      .setFooter({ text: 'Kayıt Sistemi' })
       .setTimestamp();
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('kayit_baslat').setLabel('ðŸ“ KayÄ±t Ol').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('kayit_baslat').setLabel('📝 Kayıt Ol').setStyle(ButtonStyle.Primary)
     );
     await message.channel.send({ embeds: [embed], components: [row] });
     await message.delete().catch(() => {});
   }
 
-  // !kayitsil @kullanÄ±cÄ±
+  // !kayitsil @kullanıcı
   if (message.content.startsWith('!kayitsil')) {
     const hedef = message.mentions.members.first();
-    if (!hedef) return message.reply('âŒ Bir kullanÄ±cÄ± etiketle. Ã–rnek: `!kayitsil @kullanÄ±cÄ±`');
+    if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitsil @kullanıcı`');
     try {
       if (process.env.KAYITLI_ROL_ID) await hedef.roles.remove(process.env.KAYITLI_ROL_ID).catch(() => {});
       if (process.env.KAYITSIZ_ROL_ID) await hedef.roles.add(process.env.KAYITSIZ_ROL_ID).catch(() => {});
       await hedef.setNickname(null).catch(() => {});
       kayitVerisi.delete(hedef.id);
-      await message.reply(`âœ… **${hedef.user.tag}** kullanÄ±cÄ±sÄ±nÄ±n kaydÄ± sÄ±fÄ±rlandÄ±.`);
+      await message.reply(`✅ **${hedef.user.tag}** kullanıcısının kaydı sıfırlandı.`);
       const logKanal = message.guild.channels.cache.get(process.env.LOG_KANAL_ID);
       if (logKanal) {
         await logKanal.send({ embeds: [new EmbedBuilder()
-          .setTitle('ðŸ—‘ï¸ KayÄ±t Silindi')
+          .setTitle('🗑️ Kayıt Silindi')
           .setColor(0xFF0000)
           .addFields(
-            { name: 'ðŸ‘¤ KullanÄ±cÄ±', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-            { name: 'ðŸ›¡ï¸ Ä°ÅŸlemi Yapan', value: `<@${message.author.id}>`, inline: false },
-            { name: 'ðŸ“… Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+            { name: '🛡️ İşlemi Yapan', value: `<@${message.author.id}>`, inline: false },
+            { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `KullanÄ±cÄ± ID: ${hedef.id}` })]
+          .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
         });
       }
     } catch (err) {
       console.error(err);
-      await message.reply('âŒ Bir hata oluÅŸtu.');
+      await message.reply('❌ Bir hata oluştu.');
     }
   }
 
-  // !kayitbilgi @kullanÄ±cÄ±
+  // !kayitbilgi @kullanıcı
   if (message.content.startsWith('!kayitbilgi')) {
     const hedef = message.mentions.members.first();
-    if (!hedef) return message.reply('âŒ Bir kullanÄ±cÄ± etiketle. Ã–rnek: `!kayitbilgi @kullanÄ±cÄ±`');
+    if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitbilgi @kullanıcı`');
 
     const bilgi = kayitVerisi.get(hedef.id);
     if (bilgi) {
       return message.reply({ embeds: [new EmbedBuilder()
-        .setTitle('ðŸ” KayÄ±t Bilgisi')
+        .setTitle('🔍 Kayıt Bilgisi')
         .setColor(0x5865F2)
         .addFields(
-          { name: 'ðŸ‘¤ Ä°sim', value: bilgi.isim, inline: true },
-          { name: 'ðŸŽ‚ YaÅŸ', value: `${bilgi.yas}`, inline: true },
-          { name: 'ðŸŽ® IGN', value: bilgi.ign || 'Belirtilmedi', inline: true },
-          { name: 'ðŸŽ¯ Oyun ID', value: bilgi.oyunId || 'Belirtilmedi', inline: true },
-          { name: 'ðŸ“£ Nereden Duydun?', value: bilgi.neredenDuydun || 'Belirtilmedi', inline: true },
-          { name: 'ðŸ†” Discord', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-          { name: 'ðŸ“… KayÄ±t Tarihi', value: `<t:${bilgi.tarih}:F>`, inline: false }
+          { name: '👤 İsim', value: bilgi.isim, inline: true },
+          { name: '🎂 Yaş', value: `${bilgi.yas}`, inline: true },
+          { name: '🎮 IGN', value: bilgi.ign || 'Belirtilmedi', inline: true },
+          { name: '🎯 Oyun ID', value: bilgi.oyunId || 'Belirtilmedi', inline: true },
+          { name: '📣 Nereden Duydun?', value: bilgi.neredenDuydun || 'Belirtilmedi', inline: true },
+          { name: '🆔 Discord', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+          { name: '📅 Kayıt Tarihi', value: `<t:${bilgi.tarih}:F>`, inline: false }
         )
-        .setFooter({ text: `KullanÄ±cÄ± ID: ${hedef.id}` })]
+        .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
       });
     }
 
-    // Bellekte yoksa arÅŸiv tara
+    // Bellekte yoksa arşiv tara
     const arsivKanal = message.guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
-    if (!arsivKanal) return message.reply('âŒ ArÅŸiv kanalÄ± bulunamadÄ±. ARSIV_KANAL_ID ayarlÄ± mÄ±?');
+    if (!arsivKanal) return message.reply('❌ Arşiv kanalı bulunamadı. ARSIV_KANAL_ID ayarlı mı?');
 
-    await message.reply('ðŸ” ArÅŸiv taranÄ±yor, lÃ¼tfen bekle...');
+    await message.reply('🔍 Arşiv taranıyor, lütfen bekle...');
 
     let bulunanMesaj = null;
     let lastId = null;
@@ -152,7 +152,7 @@ client.on('messageCreate', async (message) => {
       if (mesajlar.size === 0) break;
 
       for (const [, msg] of mesajlar) {
-        if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KullanÄ±cÄ± ID: ${hedef.id}`) {
+        if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `Kullanıcı ID: ${hedef.id}`) {
           bulunanMesaj = msg;
           break;
         }
@@ -163,11 +163,11 @@ client.on('messageCreate', async (message) => {
       if (mesajlar.size < 100) break;
     }
 
-    if (!bulunanMesaj) return message.reply('âŒ Bu kullanÄ±cÄ±ya ait kayÄ±t arÅŸivde bulunamadÄ±.');
+    if (!bulunanMesaj) return message.reply('❌ Bu kullanıcıya ait kayıt arşivde bulunamadı.');
 
     const arsivEmbed = bulunanMesaj.embeds[0];
     await message.reply({ embeds: [new EmbedBuilder()
-      .setTitle('ðŸ” KayÄ±t Bilgisi (ArÅŸivden)')
+      .setTitle('🔍 Kayıt Bilgisi (Arşivden)')
       .setColor(0x5865F2)
       .addFields(arsivEmbed.fields)
       .setFooter({ text: arsivEmbed.footer.text })
@@ -175,20 +175,20 @@ client.on('messageCreate', async (message) => {
     });
   }
 
-  // !kayitguncelle @kullanÄ±cÄ±
+  // !kayitguncelle @kullanıcı
   if (message.content.startsWith('!kayitguncelle')) {
     const hedef = message.mentions.members.first();
-    if (!hedef) return message.reply('âŒ Bir kullanÄ±cÄ± etiketle. Ã–rnek: `!kayitguncelle @kullanÄ±cÄ±`');
+    if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitguncelle @kullanıcı`');
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`guncelle_baslat_${hedef.id}`)
-        .setLabel('âœï¸ GÃ¼ncelleme Formunu AÃ§')
+        .setLabel('✏️ Güncelleme Formunu Aç')
         .setStyle(ButtonStyle.Secondary)
     );
 
     await message.reply({
-      content: `**${hedef.user.tag}** kullanÄ±cÄ±sÄ±nÄ±n kaydÄ±nÄ± gÃ¼ncellemek iÃ§in butona tÄ±kla:`,
+      content: `**${hedef.user.tag}** kullanıcısının kaydını güncellemek için butona tıkla:`,
       components: [row]
     });
   }
@@ -205,75 +205,75 @@ client.on('messageCreate', async (message) => {
       const buHaftaKayit = [...kayitVerisi.values()].filter(v => v.tarih >= birHaftaOnce).length;
 
       await message.reply({ embeds: [new EmbedBuilder()
-        .setTitle('ðŸ“Š Sunucu Ä°statistikleri')
+        .setTitle('📊 Sunucu İstatistikleri')
         .setColor(0x5865F2)
         .addFields(
-          { name: 'âœ… Toplam KayÄ±tlÄ± Ãœye', value: `${kayitliUyeler}`, inline: true },
-          { name: 'ðŸ“… Bu Hafta KayÄ±t', value: `${buHaftaKayit}`, inline: true },
-          { name: 'ðŸ’¾ Bellekteki KayÄ±t', value: `${kayitVerisi.size}`, inline: true }
+          { name: '✅ Toplam Kayıtlı Üye', value: `${kayitliUyeler}`, inline: true },
+          { name: '📅 Bu Hafta Kayıt', value: `${buHaftaKayit}`, inline: true },
+          { name: '💾 Bellekteki Kayıt', value: `${kayitVerisi.size}`, inline: true }
         )
-        .setFooter({ text: 'KayÄ±t Sistemi' })
+        .setFooter({ text: 'Kayıt Sistemi' })
         .setTimestamp()]
       });
     } catch (err) {
       console.error(err);
-      await message.reply('âŒ Ä°statistikler alÄ±nÄ±rken hata oluÅŸtu.');
+      await message.reply('❌ İstatistikler alınırken hata oluştu.');
     }
   }
 
   // !yardim
   if (message.content === '!yardim') {
     await message.reply({ embeds: [new EmbedBuilder()
-      .setTitle('ðŸ“– YÃ¶netici KomutlarÄ±')
+      .setTitle('📖 Yönetici Komutları')
       .setColor(0x5865F2)
-      .setDescription('AÅŸaÄŸÄ±daki komutlar sadece yÃ¶neticiler tarafÄ±ndan kullanÄ±labilir.')
+      .setDescription('Aşağıdaki komutlar sadece yöneticiler tarafından kullanılabilir.')
       .addFields(
-        { name: 'ðŸ“‹ `!panel`', value: 'KayÄ±t panelini (embed + buton) bulunduÄŸun kanala gÃ¶nderir.', inline: false },
-        { name: 'ðŸ—‘ï¸ `!kayitsil @kullanÄ±cÄ±`', value: 'Etiketlenen Ã¼yenin kaydÄ±nÄ± sÄ±fÄ±rlar.', inline: false },
-        { name: 'ðŸ” `!kayitbilgi @kullanÄ±cÄ±`', value: 'Etiketlenen Ã¼yenin kayÄ±t bilgilerini gÃ¶sterir.', inline: false },
-        { name: 'âœï¸ `!kayitguncelle @kullanÄ±cÄ±`', value: 'Etiketlenen Ã¼yenin kayÄ±t bilgilerini gÃ¼nceller.', inline: false },
-        { name: 'ðŸ“Š `!istatistik`', value: 'Sunucu kayÄ±t istatistiklerini gÃ¶sterir.', inline: false },
-        { name: 'â“ `!yardim`', value: 'Bu menÃ¼yÃ¼ gÃ¶sterir.', inline: false }
+        { name: '📋 `!panel`', value: 'Kayıt panelini (embed + buton) bulunduğun kanala gönderir.', inline: false },
+        { name: '🗑️ `!kayitsil @kullanıcı`', value: 'Etiketlenen üyenin kaydını sıfırlar.', inline: false },
+        { name: '🔍 `!kayitbilgi @kullanıcı`', value: 'Etiketlenen üyenin kayıt bilgilerini gösterir.', inline: false },
+        { name: '✏️ `!kayitguncelle @kullanıcı`', value: 'Etiketlenen üyenin kayıt bilgilerini günceller.', inline: false },
+        { name: '📊 `!istatistik`', value: 'Sunucu kayıt istatistiklerini gösterir.', inline: false },
+        { name: '❓ `!yardim`', value: 'Bu menüyü gösterir.', inline: false }
       )
-      .setFooter({ text: 'KayÄ±t Botu â€¢ Sadece yÃ¶neticiler gÃ¶rebilir' })
+      .setFooter({ text: 'Kayıt Botu • Sadece yöneticiler görebilir' })
       .setTimestamp()]
     });
   }
 });
 
-// â”€â”€â”€ Interaction handler â”€â”€â”€
+// ─── Interaction handler ───
 client.on('interactionCreate', async (interaction) => {
 
-  // KayÄ±t baÅŸlat butonu
+  // Kayıt başlat butonu
   if (interaction.isButton() && interaction.customId === 'kayit_baslat') {
     if (interaction.member.roles.cache.has(process.env.KAYITLI_ROL_ID)) {
-      return interaction.reply({ content: 'âœ… Zaten kayÄ±tlÄ±sÄ±n!', ephemeral: true });
+      return interaction.reply({ content: '✅ Zaten kayıtlısın!', ephemeral: true });
     }
-    const modal = new ModalBuilder().setCustomId('kayit_modal').setTitle('KayÄ±t Formu');
+    const modal = new ModalBuilder().setCustomId('kayit_modal').setTitle('Kayıt Formu');
 
     const isimInput = new TextInputBuilder()
-      .setCustomId('isim').setLabel('AdÄ±n')
-      .setPlaceholder('Ã–rnek: Emre')
+      .setCustomId('isim').setLabel('Adın')
+      .setPlaceholder('Örnek: Emre')
       .setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32);
 
     const yasInput = new TextInputBuilder()
-      .setCustomId('yas').setLabel('YaÅŸÄ±n')
-      .setPlaceholder('Ã–rnek: 18')
+      .setCustomId('yas').setLabel('Yaşın')
+      .setPlaceholder('Örnek: 18')
       .setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(3);
 
     const ignInput = new TextInputBuilder()
-      .setCustomId('ign').setLabel('IGN â€” Oyun KullanÄ±cÄ± AdÄ± (Opsiyonel)')
-      .setPlaceholder('MLBB nickini gir ya da boÅŸ bÄ±rak')
+      .setCustomId('ign').setLabel('IGN — Oyun Kullanıcı Adı (Opsiyonel)')
+      .setPlaceholder('MLBB nickini gir ya da boş bırak')
       .setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
 
     const oyunIdInput = new TextInputBuilder()
-      .setCustomId('oyunId').setLabel('âš ï¸ Oyun ID â€” ID YOK = Ã–DÃœL YOK!')
-      .setPlaceholder('Ã–rnek: 123456789 (1234) â€” Parantez iÃ§i sunucu numarasÄ±')
+      .setCustomId('oyunId').setLabel('⚠️ Oyun ID — ID YOK = ÖDÜL YOK!')
+      .setPlaceholder('Örnek: 123456789 (1234) — Parantez içi sunucu numarası')
       .setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(32);
 
     const neredenInput = new TextInputBuilder()
       .setCustomId('nereden').setLabel('Bizi nereden duydun? (Opsiyonel)')
-      .setPlaceholder('disboard / dscv / arkadaÅŸ / diÄŸer')
+      .setPlaceholder('disboard / dscv / arkadaş / diğer')
       .setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
 
     modal.addComponents(
@@ -286,37 +286,37 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.showModal(modal);
   }
 
-  // GÃ¼ncelleme butonu â†’ modal aÃ§
+  // Güncelleme butonu → modal aç
   if (interaction.isButton() && interaction.customId.startsWith('guncelle_baslat_')) {
     if (!interaction.member?.permissions.has('Administrator')) {
-      return interaction.reply({ content: 'âŒ Bu butonu sadece yÃ¶neticiler kullanabilir.', ephemeral: true });
+      return interaction.reply({ content: '❌ Bu butonu sadece yöneticiler kullanabilir.', ephemeral: true });
     }
     const hedefId = interaction.customId.replace('guncelle_baslat_', '');
     const mevcutBilgi = kayitVerisi.get(hedefId);
 
-    const modal = new ModalBuilder().setCustomId(`guncelle_modal_${hedefId}`).setTitle('KayÄ±t GÃ¼ncelleme Formu');
+    const modal = new ModalBuilder().setCustomId(`guncelle_modal_${hedefId}`).setTitle('Kayıt Güncelleme Formu');
 
     const isimInput = new TextInputBuilder()
-      .setCustomId('isim').setLabel('Yeni Ä°sim')
-      .setPlaceholder('Ã–rnek: Emre')
+      .setCustomId('isim').setLabel('Yeni İsim')
+      .setPlaceholder('Örnek: Emre')
       .setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32);
     if (mevcutBilgi?.isim) isimInput.setValue(mevcutBilgi.isim);
 
     const yasInput = new TextInputBuilder()
-      .setCustomId('yas').setLabel('Yeni YaÅŸ')
-      .setPlaceholder('Ã–rnek: 18')
+      .setCustomId('yas').setLabel('Yeni Yaş')
+      .setPlaceholder('Örnek: 18')
       .setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(3);
     if (mevcutBilgi?.yas) yasInput.setValue(`${mevcutBilgi.yas}`);
 
     const ignInput = new TextInputBuilder()
       .setCustomId('ign').setLabel('Yeni IGN (Opsiyonel)')
-      .setPlaceholder('MLBB nickini gir ya da boÅŸ bÄ±rak')
+      .setPlaceholder('MLBB nickini gir ya da boş bırak')
       .setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
     if (mevcutBilgi?.ign) ignInput.setValue(mevcutBilgi.ign);
 
     const oyunIdInput = new TextInputBuilder()
       .setCustomId('oyunId').setLabel('Yeni Oyun ID (Opsiyonel)')
-      .setPlaceholder('Ã–rnek: 123456789 (1234)')
+      .setPlaceholder('Örnek: 123456789 (1234)')
       .setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(32);
     if (mevcutBilgi?.oyunId) oyunIdInput.setValue(mevcutBilgi.oyunId);
 
@@ -329,7 +329,7 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.showModal(modal);
   }
 
-  // KayÄ±t modal submit
+  // Kayıt modal submit
   if (interaction.isModalSubmit() && interaction.customId === 'kayit_modal') {
     await interaction.deferReply({ ephemeral: true });
 
@@ -341,29 +341,29 @@ client.on('interactionCreate', async (interaction) => {
     const yasNum = parseInt(yas);
 
     if (isNaN(yasNum) || yasNum < 1 || yasNum > 100) {
-      return interaction.editReply({ content: 'âŒ GeÃ§erli bir yaÅŸ gir (1-100 arasÄ±).' });
+      return interaction.editReply({ content: '❌ Geçerli bir yaş gir (1-100 arası).' });
     }
     if (yasNum < 13) {
-      return interaction.editReply({ content: 'âŒ Sunucumuza katÄ±lmak iÃ§in en az **13 yaÅŸÄ±nda** olman gerekiyor.' });
+      return interaction.editReply({ content: '❌ Sunucumuza katılmak için en az **13 yaşında** olman gerekiyor.' });
     }
 
     const guild = interaction.guild;
     const member = interaction.member;
     const logKanal = guild.channels.cache.get(process.env.LOG_KANAL_ID);
 
-    // Duplicate IGN kontrolÃ¼
+    // Duplicate IGN kontrolü
     if (ign) {
       for (const [uid, veri] of kayitVerisi.entries()) {
         if (uid !== member.id && veri.ign && veri.ign.toLowerCase() === ign.toLowerCase()) {
           if (logKanal) {
             await logKanal.send({ embeds: [new EmbedBuilder()
-              .setTitle('âš ï¸ Duplicate IGN UyarÄ±sÄ±')
+              .setTitle('⚠️ Duplicate IGN Uyarısı')
               .setColor(0xFFA500)
-              .setDescription('AynÄ± IGN ile kayÄ±t giriÅŸimi tespit edildi!')
+              .setDescription('Aynı IGN ile kayıt girişimi tespit edildi!')
               .addFields(
-                { name: 'ðŸŽ® IGN', value: ign, inline: true },
-                { name: 'ðŸ†• Yeni KullanÄ±cÄ±', value: `<@${member.id}> (${member.user.tag})`, inline: false },
-                { name: 'ðŸ“‹ Mevcut KayÄ±t', value: `<@${uid}>`, inline: false }
+                { name: '🎮 IGN', value: ign, inline: true },
+                { name: '🆕 Yeni Kullanıcı', value: `<@${member.id}> (${member.user.tag})`, inline: false },
+                { name: '📋 Mevcut Kayıt', value: `<@${uid}>`, inline: false }
               )
               .setTimestamp()]
             });
@@ -383,66 +383,66 @@ client.on('interactionCreate', async (interaction) => {
       const arsivKanal = guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
       if (arsivKanal) {
         await arsivKanal.send({ embeds: [new EmbedBuilder()
-          .setTitle('ðŸ“ Yeni KayÄ±t')
+          .setTitle('📁 Yeni Kayıt')
           .setColor(0x57F287)
           .addFields(
-            { name: 'ðŸ‘¤ Ä°sim', value: isim, inline: true },
-            { name: 'ðŸŽ‚ YaÅŸ', value: `${yasNum}`, inline: true },
-            { name: 'ðŸŽ® IGN', value: ign || 'Belirtilmedi', inline: true },
-            { name: 'ðŸŽ¯ Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
-            { name: 'ðŸ“£ Nereden Duydun?', value: neredenDuydun || 'Belirtilmedi', inline: true },
-            { name: 'ðŸ†” Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
-            { name: 'ðŸ“… Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            { name: '👤 İsim', value: isim, inline: true },
+            { name: '🎂 Yaş', value: `${yasNum}`, inline: true },
+            { name: '🎮 IGN', value: ign || 'Belirtilmedi', inline: true },
+            { name: '🎯 Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
+            { name: '📣 Nereden Duydun?', value: neredenDuydun || 'Belirtilmedi', inline: true },
+            { name: '🆔 Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
+            { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `KullanÄ±cÄ± ID: ${member.id}` })
+          .setFooter({ text: `Kullanıcı ID: ${member.id}` })
           .setTimestamp()]
         });
       }
 
       if (logKanal) {
         await logKanal.send({ embeds: [new EmbedBuilder()
-          .setTitle('âœ… Yeni KayÄ±t')
+          .setTitle('✅ Yeni Kayıt')
           .setColor(0x57F287)
           .addFields(
-            { name: 'ðŸ‘¤ Ä°sim', value: isim, inline: true },
-            { name: 'ðŸŽ‚ YaÅŸ', value: `${yasNum}`, inline: true },
-            { name: 'ðŸŽ® IGN', value: ign || 'Belirtilmedi', inline: true },
-            { name: 'ðŸŽ¯ Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
-            { name: 'ðŸ“£ Nereden Duydun?', value: neredenDuydun || 'Belirtilmedi', inline: true },
-            { name: 'ðŸ†” Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
-            { name: 'ðŸ“… Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            { name: '👤 İsim', value: isim, inline: true },
+            { name: '🎂 Yaş', value: `${yasNum}`, inline: true },
+            { name: '🎮 IGN', value: ign || 'Belirtilmedi', inline: true },
+            { name: '🎯 Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
+            { name: '📣 Nereden Duydun?', value: neredenDuydun || 'Belirtilmedi', inline: true },
+            { name: '🆔 Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
+            { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `KullanÄ±cÄ± ID: ${member.id}` })
+          .setFooter({ text: `Kullanıcı ID: ${member.id}` })
           .setTimestamp()]
         });
       }
 
       await member.send({ embeds: [new EmbedBuilder()
-        .setTitle('ðŸŽ‰ Sunucumuza HoÅŸ Geldin!')
+        .setTitle('🎉 Sunucumuza Hoş Geldin!')
         .setDescription(
-          `Merhaba **${isim}**! ArtÄ±k ailemizin bir parÃ§asÄ±sÄ±n. Seni aramÄ±zda gÃ¶rmek harika! ðŸ™Œ\n\n` +
-          `ðŸ† **HaftalÄ±k Turnuva**\nHer **Cumartesi saat 20:00**'de Ã¶dÃ¼llÃ¼ turnuvamÄ±z var! KatÄ±lmak iÃ§in duyurularÄ±mÄ±zÄ± takip et, fÄ±rsatÄ± kaÃ§Ä±rma!\n\n` +
-          `ðŸ’¬ **Sohbet & EÄŸlence**\nKanallarÄ±mÄ±zda Ã¶zgÃ¼rce sohbet et, yeni arkadaÅŸlar edin, birlikte oyna!\n\n` +
-          (!oyunId ? `âš ï¸ **Oyun ID Girilmedi!**\nÃ–dÃ¼llÃ¼ turnuvalarda Ã¶dÃ¼l alabilmek iÃ§in Oyun ID'ni girmen gerekiyor. Bir yÃ¶neticiye ulaÅŸ ve gÃ¼ncellet!\n\n` : '') +
-          `âš ï¸ **HatÄ±rlatma**\nGerÃ§ek bilgilerinle kayÄ±t olduÄŸun iÃ§in turnuvalarda Ã¶dÃ¼l kazanabilirsin. YanlÄ±ÅŸ bilgi tespit edilirse etkinlik haklarÄ±nÄ± kaybedebilirsin.\n\n` +
-          `Herhangi bir sorun olursa yÃ¶neticilere ulaÅŸabilirsin. Ä°yi oyunlar! ðŸŽ®`
+          `Merhaba **${isim}**! Artık ailemizin bir parçasısın. Seni aramızda görmek harika! 🙌\n\n` +
+          `🏆 **Haftalık Turnuva**\nHer **Cumartesi saat 20:00**'de ödüllü turnuvamız var! Katılmak için duyurularımızı takip et, fırsatı kaçırma!\n\n` +
+          `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et, yeni arkadaşlar edin, birlikte oyna!\n\n` +
+          (!oyunId ? `⚠️ **Oyun ID Girilmedi!**\nÖdüllü turnuvalarda ödül alabilmek için Oyun ID'ni girmen gerekiyor. Bir yöneticiye ulaş ve güncellet!\n\n` : '') +
+          `⚠️ **Hatırlatma**\nGerçek bilgilerinle kayıt olduğun için turnuvalarda ödül kazanabilirsin. Yanlış bilgi tespit edilirse etkinlik haklarını kaybedebilirsin.\n\n` +
+          `Herhangi bir sorun olursa yöneticilere ulaşabilirsin. İyi oyunlar! 🎮`
         )
         .setColor(0x5865F2)
-        .setFooter({ text: 'KayÄ±t Sistemi' })
+        .setFooter({ text: 'Kayıt Sistemi' })
         .setTimestamp()]
       }).catch(() => {});
 
       await interaction.editReply({
-        content: `âœ… **KayÄ±t baÅŸarÄ±lÄ±!**\nHoÅŸ geldin, **${isim}**! ArtÄ±k sunucunun tam Ã¼yesisin. ðŸŽ‰` +
-          (!oyunId ? '\n\nâš ï¸ **Oyun ID girmedin!** Ã–dÃ¼l almak iÃ§in bir yÃ¶neticiye ulaÅŸ.' : '')
+        content: `✅ **Kayıt başarılı!**\nHoş geldin, **${isim}**! Artık sunucunun tam üyesisin. 🎉` +
+          (!oyunId ? '\n\n⚠️ **Oyun ID girmedin!** Ödül almak için bir yöneticiye ulaş.' : '')
       });
     } catch (err) {
-      console.error('KayÄ±t hatasÄ±:', err);
-      await interaction.editReply({ content: 'âŒ Bir hata oluÅŸtu. YÃ¶netici ile iletiÅŸime geÃ§.' });
+      console.error('Kayıt hatası:', err);
+      await interaction.editReply({ content: '❌ Bir hata oluştu. Yönetici ile iletişime geç.' });
     }
   }
 
-  // GÃ¼ncelleme modal submit
+  // Güncelleme modal submit
   if (interaction.isModalSubmit() && interaction.customId.startsWith('guncelle_modal_')) {
     await interaction.deferReply({ ephemeral: true });
     const hedefId = interaction.customId.replace('guncelle_modal_', '');
@@ -453,70 +453,4 @@ client.on('interactionCreate', async (interaction) => {
     const oyunId = interaction.fields.getTextInputValue('oyunId') || null;
     const yasNum = parseInt(yas);
 
-    if (isNaN(yasNum) || yasNum < 1 || yasNum > 100) {
-      return interaction.editReply({ content: 'âŒ GeÃ§erli bir yaÅŸ gir (1-100 arasÄ±).' });
-    }
-
-    const guild = interaction.guild;
-    const hedef = await guild.members.fetch(hedefId).catch(() => null);
-    if (!hedef) return interaction.editReply({ content: 'âŒ KullanÄ±cÄ± bulunamadÄ±.' });
-
-    const eskiBilgi = kayitVerisi.get(hedefId);
-    kayitVerisi.set(hedefId, {
-      isim, yas: yasNum, ign, oyunId,
-      neredenDuydun: eskiBilgi?.neredenDuydun || null,
-      tarih: eskiBilgi?.tarih || Math.floor(Date.now() / 1000)
-    });
-
-    const nick = ign ? `${isim} (${ign}) | ${yasNum}` : `${isim} | ${yasNum}`;
-    await hedef.setNickname(nick).catch(() => {});
-
-    const arsivKanal = guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
-    if (arsivKanal) {
-      await arsivKanal.send({ embeds: [new EmbedBuilder()
-        .setTitle('âœï¸ KayÄ±t GÃ¼ncellendi')
-        .setColor(0xFFA500)
-        .addFields(
-          { name: 'ðŸ‘¤ Ä°sim', value: isim, inline: true },
-          { name: 'ðŸŽ‚ YaÅŸ', value: `${yasNum}`, inline: true },
-          { name: 'ðŸŽ® IGN', value: ign || 'Belirtilmedi', inline: true },
-          { name: 'ðŸŽ¯ Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
-          { name: 'ðŸ†” Discord', value: `<@${hedefId}> (${hedef.user.tag})`, inline: false },
-          { name: 'ðŸ›¡ï¸ GÃ¼ncelleyen', value: `<@${interaction.user.id}>`, inline: false },
-          { name: 'ðŸ“… GÃ¼ncelleme Tarihi', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-        )
-        .setFooter({ text: `KullanÄ±cÄ± ID: ${hedefId}` })
-        .setTimestamp()]
-      });
-    }
-
-    const logKanal = guild.channels.cache.get(process.env.LOG_KANAL_ID);
-    if (logKanal) {
-      await logKanal.send({ embeds: [new EmbedBuilder()
-        .setTitle('âœï¸ KayÄ±t GÃ¼ncellendi')
-        .setColor(0xFFA500)
-        .addFields(
-          { name: 'ðŸ‘¤ KullanÄ±cÄ±', value: `<@${hedefId}> (${hedef.user.tag})`, inline: false },
-          { name: 'ðŸ›¡ï¸ GÃ¼ncelleyen', value: `<@${interaction.user.id}>`, inline: false },
-          { name: 'ðŸ“ Yeni Bilgiler', value: `Ä°sim: ${isim} | YaÅŸ: ${yasNum} | IGN: ${ign || 'Belirtilmedi'} | Oyun ID: ${oyunId || 'Belirtilmedi'}`, inline: false }
-        )
-        .setTimestamp()]
-      });
-    }
-
-    await interaction.editReply({ content: `âœ… **${hedef.user.tag}** kullanÄ±cÄ±sÄ±nÄ±n kaydÄ± gÃ¼ncellendi!` });
-  }
-});
-
-client.on('guildMemberAdd', async (member) => {
-  if (process.env.KAYITSIZ_ROL_ID) await member.roles.add(process.env.KAYITSIZ_ROL_ID).catch(console.error);
-});
-
-client.once('ready', async () => {
-  console.log(`Bot aktif: ${client.user.tag}`);
-  for (const [, guild] of client.guilds.cache) {
-    await arsivdenYukle(guild).catch(console.error);
-  }
-});
-
-client.login(process.env.BOT_TOKEN);
+ 
