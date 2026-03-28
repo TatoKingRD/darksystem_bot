@@ -61,19 +61,60 @@ client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!kayitbilgi')) {
     const hedef = message.mentions.members.first();
     if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitbilgi @kullanıcı`');
+
+    // Önce bellekte bak (bot yeni başladıysa bile yeni kayıtlar buraya düşer)
     const bilgi = kayitVerisi.get(hedef.id);
-    if (!bilgi) return message.reply('❌ Bu kullanıcıya ait kayıt verisi bulunamadı.');
+    if (bilgi) {
+      return message.reply({ embeds: [new EmbedBuilder()
+        .setTitle('🔍 Kayıt Bilgisi')
+        .setColor(0x5865F2)
+        .addFields(
+          { name: '👤 İsim', value: bilgi.isim, inline: true },
+          { name: '🎂 Yaş', value: `${bilgi.yas}`, inline: true },
+          { name: '🎮 IGN', value: bilgi.ign || 'Belirtilmedi', inline: true },
+          { name: '🆔 Discord', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+          { name: '📅 Kayıt Tarihi', value: `<t:${bilgi.tarih}:F>`, inline: false }
+        )
+        .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
+      });
+    }
+
+    // Bellekte yoksa arşiv kanalını tara
+    const arsivKanal = message.guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
+    if (!arsivKanal) return message.reply('❌ Arşiv kanalı bulunamadı. ARSIV_KANAL_ID ayarlı mı?');
+
+    await message.reply('🔍 Arşiv taranıyor, lütfen bekle...');
+
+    let bulunanMesaj = null;
+    let lastId = null;
+
+    while (true) {
+      const options = { limit: 100 };
+      if (lastId) options.before = lastId;
+      const mesajlar = await arsivKanal.messages.fetch(options);
+      if (mesajlar.size === 0) break;
+
+      for (const [, msg] of mesajlar) {
+        if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `Kullanıcı ID: ${hedef.id}`) {
+          bulunanMesaj = msg;
+          break;
+        }
+      }
+
+      if (bulunanMesaj) break;
+      lastId = mesajlar.last().id;
+      if (mesajlar.size < 100) break;
+    }
+
+    if (!bulunanMesaj) return message.reply('❌ Bu kullanıcıya ait kayıt arşivde bulunamadı.');
+
+    const arsivEmbed = bulunanMesaj.embeds[0];
     await message.reply({ embeds: [new EmbedBuilder()
-      .setTitle('🔍 Kayıt Bilgisi')
+      .setTitle('🔍 Kayıt Bilgisi (Arşivden)')
       .setColor(0x5865F2)
-      .addFields(
-        { name: '👤 İsim', value: bilgi.isim, inline: true },
-        { name: '🎂 Yaş', value: `${bilgi.yas}`, inline: true },
-        { name: '🎮 IGN', value: bilgi.ign || 'Belirtilmedi', inline: true },
-        { name: '🆔 Discord', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-        { name: '📅 Kayıt Tarihi', value: `<t:${bilgi.tarih}:F>`, inline: false }
-      )
-      .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
+      .addFields(arsivEmbed.fields)
+      .setFooter({ text: arsivEmbed.footer.text })
+      .setTimestamp(arsivEmbed.timestamp ? new Date(arsivEmbed.timestamp) : null)]
     });
   }
 
