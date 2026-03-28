@@ -292,7 +292,36 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.reply({ content: '❌ Bu butonu sadece yöneticiler kullanabilir.', ephemeral: true });
     }
     const hedefId = interaction.customId.replace('guncelle_baslat_', '');
-    const mevcutBilgi = kayitVerisi.get(hedefId);
+    let mevcutBilgi = kayitVerisi.get(hedefId);
+
+    // Bellekte yoksa arşivden çek
+    if (!mevcutBilgi) {
+      const arsivKanal = interaction.guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
+      if (arsivKanal) {
+        let lastId = null;
+        outer: while (true) {
+          const options = { limit: 100 };
+          if (lastId) options.before = lastId;
+          const mesajlar = await arsivKanal.messages.fetch(options);
+          if (mesajlar.size === 0) break;
+          for (const [, msg] of mesajlar) {
+            if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `Kullanıcı ID: ${hedefId}`) {
+              const fields = {};
+              for (const f of msg.embeds[0].fields) fields[f.name] = f.value;
+              mevcutBilgi = {
+                isim: (fields['👤 İsim'] || '').trim(),
+                yas: parseInt((fields['🎂 Yaş'] || '0').trim()) || 0,
+                ign: (fields['🎮 IGN'] || '').trim() === 'Belirtilmedi' ? null : (fields['🎮 IGN'] || '').trim() || null,
+                oyunId: (fields['🎯 Oyun ID'] || '').trim() === 'Belirtilmedi' ? null : (fields['🎯 Oyun ID'] || '').trim() || null,
+              };
+              break outer;
+            }
+          }
+          if (mesajlar.size < 100) break;
+          lastId = mesajlar.last().id;
+        }
+      }
+    }
 
     const modal = new ModalBuilder().setCustomId(`guncelle_modal_${hedefId}`).setTitle('Kayıt Güncelleme Formu');
 
@@ -417,7 +446,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      await member.send({ embeds: [new EmbedBuilder()
+       await member.send({ embeds: [new EmbedBuilder()
         .setTitle('🎉 Sunucumuza Hoş Geldin!')
         .setDescription(
           `Merhaba **${isim}**! Artık ailemizin bir parçasısın. Seni aramızda görmek harika! 🙌\n\n` +
@@ -453,7 +482,7 @@ client.on('interactionCreate', async (interaction) => {
     const oyunId = interaction.fields.getTextInputValue('oyunId') || null;
     const yasNum = parseInt(yas);
 
-     if (isNaN(yasNum) || yasNum < 1 || yasNum > 100) {
+    if (isNaN(yasNum) || yasNum < 1 || yasNum > 100) {
       return interaction.editReply({ content: '❌ Geçerli bir yaş gir (1-100 arası).' });
     }
 
@@ -520,3 +549,4 @@ client.once('ready', async () => {
 });
 
 client.login(process.env.BOT_TOKEN);
+    
