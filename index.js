@@ -6,11 +6,15 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message]
 });
 
+// Kayıt bilgilerini geçici bellekte tut
+const kayitVerisi = new Map();
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+  if (!message.member?.permissions.has('Administrator')) return;
 
-  // !panel komutu
-  if (message.content === '!panel' && message.member?.permissions.has('Administrator')) {
+  // !panel
+  if (message.content === '!panel') {
     const embed = new EmbedBuilder()
       .setTitle('📋 Kayıt Formu')
       .setDescription('**Sunucumuza Hoş Geldin!** 🌟\n\nKayıt olmak için aşağıdaki butona tıkla ve formu doldur.\nKayıt işlemi tamamlanınca **Kayıtlı Üye** rolü verilecektir.\n\n> ⚠️ Lütfen gerçek bilgilerini gir. Aksi takdirde sunucumuzda ödül kazanamazsın!')
@@ -24,20 +28,19 @@ client.on('messageCreate', async (message) => {
     await message.delete().catch(() => {});
   }
 
-  // !kayitsil komutu
-  if (message.content.startsWith('!kayitsil') && message.member?.permissions.has('Administrator')) {
+  // !kayitsil @kullanıcı
+  if (message.content.startsWith('!kayitsil')) {
     const hedef = message.mentions.members.first();
     if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitsil @kullanıcı`');
-
     try {
       if (process.env.KAYITLI_ROL_ID) await hedef.roles.remove(process.env.KAYITLI_ROL_ID).catch(() => {});
       if (process.env.KAYITSIZ_ROL_ID) await hedef.roles.add(process.env.KAYITSIZ_ROL_ID).catch(() => {});
       await hedef.setNickname(null).catch(() => {});
+      kayitVerisi.delete(hedef.id);
       await message.reply(`✅ **${hedef.user.tag}** kullanıcısının kaydı sıfırlandı.`);
-
       const logKanal = message.guild.channels.cache.get(process.env.LOG_KANAL_ID);
       if (logKanal) {
-        const logEmbed = new EmbedBuilder()
+        await logKanal.send({ embeds: [new EmbedBuilder()
           .setTitle('🗑️ Kayıt Silindi')
           .setColor(0xFF0000)
           .addFields(
@@ -45,13 +48,50 @@ client.on('messageCreate', async (message) => {
             { name: '🛡️ İşlemi Yapan', value: `<@${message.author.id}>`, inline: false },
             { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `Kullanıcı ID: ${hedef.id}` });
-        await logKanal.send({ embeds: [logEmbed] });
+          .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
+        });
       }
     } catch (err) {
-      console.error('Kayıt silme hatası:', err);
+      console.error(err);
       await message.reply('❌ Bir hata oluştu.');
     }
+  }
+
+  // !kayitbilgi @kullanıcı
+  if (message.content.startsWith('!kayitbilgi')) {
+    const hedef = message.mentions.members.first();
+    if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitbilgi @kullanıcı`');
+    const bilgi = kayitVerisi.get(hedef.id);
+    if (!bilgi) return message.reply('❌ Bu kullanıcıya ait kayıt verisi bulunamadı.');
+    await message.reply({ embeds: [new EmbedBuilder()
+      .setTitle('🔍 Kayıt Bilgisi')
+      .setColor(0x5865F2)
+      .addFields(
+        { name: '👤 İsim', value: bilgi.isim, inline: true },
+        { name: '🎂 Yaş', value: `${bilgi.yas}`, inline: true },
+        { name: '🎮 IGN', value: bilgi.ign || 'Belirtilmedi', inline: true },
+        { name: '🆔 Discord', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+        { name: '📅 Kayıt Tarihi', value: `<t:${bilgi.tarih}:F>`, inline: false }
+      )
+      .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })]
+    });
+  }
+
+  // !yardim
+  if (message.content === '!yardim') {
+    await message.reply({ embeds: [new EmbedBuilder()
+      .setTitle('📖 Yönetici Komutları')
+      .setColor(0x5865F2)
+      .setDescription('Aşağıdaki komutlar sadece yöneticiler tarafından kullanılabilir.')
+      .addFields(
+        { name: '📋 `!panel`', value: 'Kayıt panelini (embed + buton) bulunduğun kanala gönderir.', inline: false },
+        { name: '🗑️ `!kayitsil @kullanıcı`', value: 'Etiketlenen üyenin kaydını sıfırlar, Kayıtsız rolünü geri verir, nickname\'i temizler.', inline: false },
+        { name: '🔍 `!kayitbilgi @kullanıcı`', value: 'Etiketlenen üyenin kayıt bilgilerini gösterir (isim, yaş, IGN, tarih). Ödül dağıtımında kullanışlıdır.', inline: false },
+        { name: '❓ `!yardim`', value: 'Bu menüyü gösterir.', inline: false }
+      )
+      .setFooter({ text: 'Kayıt Botu • Sadece yöneticiler görebilir' })
+      .setTimestamp()]
+    });
   }
 });
 
@@ -89,10 +129,13 @@ client.on('interactionCreate', async (interaction) => {
       const nick = ign ? `${isim} (${ign}) | ${yasNum}` : `${isim} | ${yasNum}`;
       await member.setNickname(nick).catch(() => {});
 
+      // Kayıt verisini bellekte sakla
+      kayitVerisi.set(member.id, { isim, yas: yasNum, ign, tarih: Math.floor(Date.now() / 1000) });
+
       // Arşiv kanalı
       const arsivKanal = guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
       if (arsivKanal) {
-        const arsivEmbed = new EmbedBuilder()
+        await arsivKanal.send({ embeds: [new EmbedBuilder()
           .setTitle('📁 Yeni Kayıt')
           .setColor(0x57F287)
           .addFields(
@@ -102,14 +145,14 @@ client.on('interactionCreate', async (interaction) => {
             { name: '🆔 Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
             { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `Kullanıcı ID: ${member.id}` });
-        await arsivKanal.send({ embeds: [arsivEmbed] });
+          .setFooter({ text: `Kullanıcı ID: ${member.id}` })]
+        });
       }
 
       // Log kanalı
       const logKanal = guild.channels.cache.get(process.env.LOG_KANAL_ID);
       if (logKanal) {
-        const logEmbed = new EmbedBuilder()
+        await logKanal.send({ embeds: [new EmbedBuilder()
           .setTitle('✅ Yeni Kayıt')
           .setColor(0x57F287)
           .addFields(
@@ -119,26 +162,23 @@ client.on('interactionCreate', async (interaction) => {
             { name: '🆔 Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
             { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
           )
-          .setFooter({ text: `Kullanıcı ID: ${member.id}` });
-        await logKanal.send({ embeds: [logEmbed] });
+          .setFooter({ text: `Kullanıcı ID: ${member.id}` })]
+        });
       }
 
       // Hoş geldin DM
-      await member.send({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle('🎉 Sunucumuza Hoş Geldin!')
-            .setDescription(
-              `Merhaba **${isim}**! Artık ailemizin bir parçasısın. Seni aramızda görmek harika! 🙌\n\n` +
-              `🏆 **Haftalık Turnuva**\nHer **Cumartesi saat 20:00**'de ödüllü turnuvamız var! Katılmak için duyurularımızı takip et, fırsatı kaçırma!\n\n` +
-              `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et, yeni arkadaşlar edin, birlikte oyna!\n\n` +
-              `⚠️ **Hatırlatma**\nGerçek bilgilerinle kayıt olduğun için turnuvalarda ödül kazanabilirsin. Yanlış bilgi tespit edilirse etkinlik haklarını kaybedebilirsin.\n\n` +
-              `Herhangi bir sorun olursa yöneticilere ulaşabilirsin. İyi oyunlar! 🎮`
-            )
-            .setColor(0x5865F2)
-            .setFooter({ text: 'Kayıt Sistemi' })
-            .setTimestamp()
-        ]
+      await member.send({ embeds: [new EmbedBuilder()
+        .setTitle('🎉 Sunucumuza Hoş Geldin!')
+        .setDescription(
+          `Merhaba **${isim}**! Artık ailemizin bir parçasısın. Seni aramızda görmek harika! 🙌\n\n` +
+          `🏆 **Haftalık Turnuva**\nHer **Cumartesi saat 20:00**'de ödüllü turnuvamız var! Katılmak için duyurularımızı takip et, fırsatı kaçırma!\n\n` +
+          `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et, yeni arkadaşlar edin, birlikte oyna!\n\n` +
+          `⚠️ **Hatırlatma**\nGerçek bilgilerinle kayıt olduğun için turnuvalarda ödül kazanabilirsin. Yanlış bilgi tespit edilirse etkinlik haklarını kaybedebilirsin.\n\n` +
+          `Herhangi bir sorun olursa yöneticilere ulaşabilirsin. İyi oyunlar! 🎮`
+        )
+        .setColor(0x5865F2)
+        .setFooter({ text: 'Kayıt Sistemi' })
+        .setTimestamp()]
       }).catch(() => {});
 
       await interaction.editReply({ content: `✅ **Kayıt başarılı!**\nHoş geldin, **${isim}**! Artık sunucunun tam üyesisin. 🎉` });
