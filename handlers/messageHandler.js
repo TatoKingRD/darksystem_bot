@@ -4,6 +4,7 @@
 const yardimKomutu = require('../commands/yardim');
 const takimKomutu = require('../commands/takim');
 const { uyarEkle, uyarilariGoster, uyariSil } = require('../commands/uyari');
+const { rolVer, rolAl } = require('../commands/rol');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 // Railway env'den moderasyon rolü ID'si
@@ -47,6 +48,16 @@ module.exports = async function messageHandler(client, message) {
   // !uyarisil @kullanıcı numara
   if (message.content.startsWith('!uyarisil')) {
     return uyariSil(message);
+  }
+
+  // !rolver @kullanici @rol
+  if (message.content.startsWith('!rolver')) {
+    return rolVer(message);
+  }
+
+  // !rolal @kullanici @rol
+  if (message.content.startsWith('!rolal')) {
+    return rolAl(message);
   }
 
   // !panel
