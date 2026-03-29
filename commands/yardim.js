@@ -4,36 +4,36 @@ const { EmbedBuilder } = require('discord.js');
 module.exports = async function yardimKomutu(message, isMod) {
   if (isMod) {
     return message.reply({ embeds: [new EmbedBuilder()
-      .setTitle('Moderator Komutlari')
+      .setTitle('🛡️ Moderatör Komutları')
       .setColor(0xE74C3C)
-      .setDescription('Asagidaki komutlar sadece moderatorler tarafindan kullanilabilir.')
+      .setDescription('Aşağıdaki komutlar sadece moderatörler tarafından kullanılabilir.')
       .addFields(
-        { name: '!panel', value: 'Kayit panelini kanala gonderir.', inline: false },
-        { name: '!kayitsil @kullanici', value: 'Uyenin kaydini sifirlar.', inline: false },
-        { name: '!kayitbilgi @kullanici', value: 'Kayit bilgilerini gosterir.', inline: false },
-        { name: '!kayitguncelle @kullanici', value: 'Kayit bilgilerini gunceller.', inline: false },
-        { name: '!istatistik', value: 'Sunucu istatistiklerini gosterir.', inline: false },
-        { name: '!uyar @kullanici sebep', value: 'Uyari verir, log kanalina kaydeder.', inline: false },
-        { name: '!uyarilar @kullanici', value: 'Uyari gecmisini gosterir.', inline: false },
-        { name: '!uyarisil @kullanici numara', value: 'Belirtilen uyariyi siler.', inline: false },
-        { name: '!rolver @kullanici @rol', value: 'Kullaniciya rol verir.', inline: false },
-        { name: '!rolal @kullanici @rol', value: 'Kullanicidan rol alir.', inline: false },
-        { name: '!takim rank rol', value: 'Takim ilani olusturur.', inline: false },
-        { name: '!yardim', value: 'Bu menuyu gosterir.', inline: false }
+        { name: '📋 !panel', value: 'Kayıt panelini kanala gönderir.', inline: false },
+        { name: '🗑️ !kayitsil @kullanıcı', value: 'Üyenin kaydını sıfırlar.', inline: false },
+        { name: '🔍 !kayitbilgi @kullanıcı', value: 'Kayıt bilgilerini gösterir.', inline: false },
+        { name: '✏️ !kayitguncelle @kullanıcı', value: 'Kayıt bilgilerini günceller.', inline: false },
+        { name: '📊 !istatistik', value: 'Sunucu istatistiklerini gösterir.', inline: false },
+        { name: '⚠️ !uyar @kullanıcı sebep', value: 'Uyarı verir, log kanalına kaydeder.', inline: false },
+        { name: '📋 !uyarilar @kullanıcı', value: 'Uyarı geçmişini gösterir.', inline: false },
+        { name: '🗑️ !uyarisil @kullanıcı numara', value: 'Belirtilen uyarıyı siler.', inline: false },
+        { name: '✅ !rolver @kullanıcı @rol', value: 'Kullanıcıya rol verir.', inline: false },
+        { name: '❌ !rolal @kullanıcı @rol', value: 'Kullanıcıdan rol alır.', inline: false },
+        { name: '🎮 !takim rank rol', value: 'Takım ilanı oluşturur.', inline: false },
+        { name: '❓ !yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
-      .setFooter({ text: 'MLBB TR - Moderator Paneli' })
+      .setFooter({ text: 'MLBB TR • Moderatör Paneli' })
       .setTimestamp()]
     });
   } else {
     return message.reply({ embeds: [new EmbedBuilder()
-      .setTitle('Kullanilabilir Komutlar')
+      .setTitle('📖 Kullanılabilir Komutlar')
       .setColor(0x5865F2)
-      .setDescription('Merhaba! Sunucuda kullanabilecegin komutlar bunlar:')
+      .setDescription('Merhaba! Sunucuda kullanabileceğin komutlar bunlar:')
       .addFields(
-        { name: '!takim rank rol', value: 'Takim arkadasi bulmak icin ilan olusturur.\nOrnek: !takim Mythic Nisanci', inline: false },
-        { name: '!yardim', value: 'Bu menuyu gosterir.', inline: false }
+        { name: '🎮 !takim rank rol', value: 'Takım arkadaşı bulmak için ilan oluşturur.\nÖrnek: !takim Mythic Nişancı', inline: false },
+        { name: '❓ !yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
-      .setFooter({ text: 'MLBB TR - Yardim Menusu' })
+      .setFooter({ text: 'MLBB TR • Yardım Menüsü' })
       .setTimestamp()]
     });
   }
