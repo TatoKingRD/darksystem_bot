@@ -39,6 +39,4 @@ module.exports = async function yardimKomutu(message, isMod) {
       .setTimestamp()]
     });
   }
-};    });
-  }
 };
