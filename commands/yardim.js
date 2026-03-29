@@ -16,6 +16,9 @@ module.exports = async function yardimKomutu(message, isMod) {
         { name: '🔍 `!kayitbilgi @kullanıcı`', value: 'Etiketlenen üyenin kayıt bilgilerini gösterir.', inline: false },
         { name: '✏️ `!kayitguncelle @kullanıcı`', value: 'Etiketlenen üyenin kayıt bilgilerini günceller.', inline: false },
         { name: '📊 `!istatistik`', value: 'Sunucu kayıt istatistiklerini gösterir.', inline: false },
+        { name: '⚠️ `!uyar @kullanıcı [sebep]`', value: 'Kullanıcıya uyarı verir, log kanalına kaydeder.', inline: false },
+        { name: '📋 `!uyarilar @kullanıcı`', value: 'Kullanıcının uyarı geçmişini gösterir.', inline: false },
+        { name: '🗑️ `!uyarisil @kullanıcı [numara]`', value: 'Belirtilen uyarıyı siler.', inline: false },
         { name: '🎮 `!takim [rank] [rol]`', value: 'Takım arama ilanı oluşturur.', inline: false },
         { name: '❓ `!yardim`', value: 'Bu menüyü gösterir.', inline: false }
       )
@@ -35,5 +38,7 @@ module.exports = async function yardimKomutu(message, isMod) {
       .setFooter({ text: 'MLBB TR • Yardım Menüsü' })
       .setTimestamp()]
     });
+  }
+};    });
   }
 };
