@@ -1,9 +1,6 @@
 // commands/takim.js
 const { EmbedBuilder } = require('discord.js');
 
-// Railway'e TAKIM_ROL_ID env değişkeni eklemen lazım
-// Bu rolü isteyen üyeler Carl-bot reaction role ile alabilir
-
 module.exports = async function takimKomutu(client, message) {
   const args = message.content.slice('!takim'.length).trim().split(' ');
 
@@ -35,6 +32,22 @@ module.exports = async function takimKomutu(client, message) {
     .addFields(
       { name: '🏅 Rank', value: rank, inline: true },
       { name: '🎯 Aranan Rol', value: rol, inline: true },
+      { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
+    )
+    .setFooter({ text: 'İlgilenenler bu mesajı yanıtlayabilir' })
+    .setTimestamp();
+
+  await message.delete().catch(() => {});
+
+  const takimRolId = process.env.TAKIM_ROL_ID;
+  const pingMesaj = takimRolId ? `<@&${takimRolId}>` : null;
+
+  await message.channel.send({
+    content: pingMesaj,
+    embeds: [ilan],
+    allowedMentions: { roles: takimRolId ? [takimRolId] : [] }
+  });
+};      { name: '🎯 Aranan Rol', value: rol, inline: true },
       { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
     )
     .setFooter({ text: 'İlgilenenler bu mesajı yanıtlayabilir' })
