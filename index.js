@@ -6,17 +6,24 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message]
 });
 
+// Paylaşılan kayıt verisi (tüm modüller bu Map'i kullanır)
 const kayitVerisi = new Map();
 client.kayitVerisi = kayitVerisi;
 
+// Handler'ları yükle
 const messageHandler = require('./handlers/messageHandler');
 const interactionHandler = require('./handlers/interactionHandler');
 
 client.on('messageCreate', (message) => messageHandler(client, message));
 client.on('interactionCreate', (interaction) => interactionHandler(client, interaction));
 
+const hosgeldinGonder = require('./commands/hosgeldin');
+const dmHatirlatmaBaşlat = require('./commands/dmHatirlatma');
+
 client.on('guildMemberAdd', async (member) => {
   if (process.env.KAYITSIZ_ROL_ID) await member.roles.add(process.env.KAYITSIZ_ROL_ID).catch(console.error);
+  await hosgeldinGonder(member);
+  dmHatirlatmaBaşlat(member);
 });
 
 client.once('ready', async () => {
