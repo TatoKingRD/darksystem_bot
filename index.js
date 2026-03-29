@@ -6,11 +6,9 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message]
 });
 
-// Paylaşılan kayıt verisi (tüm modüller bu Map'i kullanır)
 const kayitVerisi = new Map();
 client.kayitVerisi = kayitVerisi;
 
-// Handler'ları yükle
 const messageHandler = require('./handlers/messageHandler');
 const interactionHandler = require('./handlers/interactionHandler');
 
