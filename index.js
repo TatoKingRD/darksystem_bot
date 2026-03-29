@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
 require('dotenv').config();
 
 const client = new Client({
@@ -28,6 +28,16 @@ client.on('guildMemberAdd', async (member) => {
 
 client.once('ready', async () => {
   console.log(`Bot aktif: ${client.user.tag}`);
+
+  client.user.setPresence({
+    activities: [{
+      name: 'Mobile Legends TR #TURNUVA',
+      type: ActivityType.Playing,
+      state: 'Sunucuyu Bekliyor 🎮'
+    }],
+    status: 'online'
+  });
+
   const { arsivdenYukle } = require('./handlers/arsiv');
   for (const [, guild] of client.guilds.cache) {
     await arsivdenYukle(guild, kayitVerisi).catch(console.error);
