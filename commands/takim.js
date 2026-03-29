@@ -1,11 +1,10 @@
 // commands/takim.js
-// Herkes kullanabilir - takım arkadaşı arama ilanı oluşturur
-
 const { EmbedBuilder } = require('discord.js');
 
+// Railway'e TAKIM_ROL_ID env değişkeni eklemen lazım
+// Bu rolü isteyen üyeler Carl-bot reaction role ile alabilir
+
 module.exports = async function takimKomutu(client, message) {
-  // Kullanım: !takim [rank] [rol]
-  // Örnek:    !takim Mythic Nişancı
   const args = message.content.slice('!takim'.length).trim().split(' ');
 
   if (args.length < 2 || !args[0]) {
@@ -23,18 +22,36 @@ module.exports = async function takimKomutu(client, message) {
   const rank = args[0];
   const rol = args.slice(1).join(' ');
 
-  // Rank rengi
   const rankRenkleri = {
-    warrior: 0x808080,
-    elite: 0x00AA00,
-    master: 0x0000FF,
-    grandmaster: 0x9B59B6,
-    epic: 0xE67E22,
-    legend: 0xF1C40F,
-    mythic: 0xE74C3C
+    warrior: 0x808080, elite: 0x00AA00, master: 0x0000FF,
+    grandmaster: 0x9B59B6, epic: 0xE67E22, legend: 0xF1C40F, mythic: 0xE74C3C
   };
   const renk = rankRenkleri[rank.toLowerCase()] || 0x5865F2;
 
+  const ilan = new EmbedBuilder()
+    .setTitle('🎮 Takım Arkadaşı Aranıyor!')
+    .setColor(renk)
+    .setDescription(`<@${message.author.id}> takım arıyor! İlgilenenler DM atsın veya bu mesajı yanıtlasın.`)
+    .addFields(
+      { name: '🏅 Rank', value: rank, inline: true },
+      { name: '🎯 Aranan Rol', value: rol, inline: true },
+      { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
+    )
+    .setFooter({ text: 'İlgilenenler bu mesajı yanıtlayabilir' })
+    .setTimestamp();
+
+  await message.delete().catch(() => {});
+
+  // Takım Ara rolü varsa ping at, yoksa pingsiz gönder
+  const takimRolId = process.env.TAKIM_ROL_ID;
+  const pingMesaj = takimRolId ? `<@&${takimRolId}>` : null;
+
+  await message.channel.send({
+    content: pingMesaj,
+    embeds: [ilan],
+    allowedMentions: { roles: takimRolId ? [takimRolId] : [] }
+  });
+};
   const ilan = new EmbedBuilder()
     .setTitle('🎮 Takım Arkadaşı Aranıyor!')
     .setColor(renk)
