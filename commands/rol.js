@@ -16,7 +16,12 @@ async function rolVer(message) {
   }
 
   if (rol.position >= message.guild.members.me.roles.highest.position) {
-    return message.reply('Bu rol botun rolünden yukarda, veremem.');
+    return message.reply('❌ Bu rol botun rolünden yukarda, veremem.');
+  }
+
+  // Komutu kullanan kişi vermek istediği rolden düşükteyse reddet
+  if (rol.position >= message.member.roles.highest.position) {
+    return message.reply('❌ Kendi rolünden yüksek veya eşit bir rolü veremezsin.');
   }
 
   // Komutu kullanan kişi hedeften düşük roldeyse reddet
