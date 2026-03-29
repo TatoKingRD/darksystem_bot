@@ -16,14 +16,23 @@ function isModerator(member) {
   return member.permissions.has('Administrator');
 }
 
+function isAsistan(member) {
+  if (process.env.ASISTAN_ROL_ID) {
+    return member.roles.cache.has(process.env.ASISTAN_ROL_ID);
+  }
+  return false;
+}
+
 module.exports = async function messageHandler(client, message) {
   if (message.author.bot) return;
   const kayitVerisi = client.kayitVerisi;
   const isMod = isModerator(message.member);
+  const isAsis = isAsistan(message.member);
+  const yetkili = isMod || isAsis; // moderatör veya asistan
 
   // ─── !yardim (herkese açık, içerik role göre değişir) ───
   if (message.content === '!yardim') {
-    return yardimKomutu(message, isMod);
+    return yardimKomutu(message, isMod, isAsis);
   }
 
   // ─── !takim (herkese açık) ───
@@ -31,52 +40,24 @@ module.exports = async function messageHandler(client, message) {
     return takimKomutu(client, message);
   }
 
-  // ─── !uyarilar (moderatöre özel) ───
+  // ─── Asistan ve moderatör komutları ───
   if (message.content.startsWith('!uyarilar')) {
-    if (!isMod) return;
+    if (!yetkili) return;
     return uyarilariGoster(message);
   }
 
-  // ─── Aşağısı sadece moderatörler ───
-  if (!isMod) return;
-
-  // !uyar @kullanıcı sebep
   if (message.content.startsWith('!uyar ')) {
+    if (!yetkili) return;
     return uyarEkle(message, kayitVerisi);
   }
 
-  // !uyarisil @kullanıcı numara
   if (message.content.startsWith('!uyarisil')) {
+    if (!yetkili) return;
     return uyariSil(message);
   }
 
-  // !rolver @kullanici @rol
-  if (message.content.startsWith('!rolver')) {
-    return rolVer(message);
-  }
-
-  // !rolal @kullanici @rol
-  if (message.content.startsWith('!rolal')) {
-    return rolAl(message);
-  }
-
-  // !panel
-  if (message.content === '!panel') {
-    const embed = new EmbedBuilder()
-      .setTitle('📋 Kayıt Formu')
-      .setDescription('**Sunucumuza Hoş Geldin!** 🌟\n\nKayıt olmak için aşağıdaki butona tıkla ve formu doldur.\nKayıt işlemi tamamlanınca **Kayıtlı Üye** rolü verilecektir.\n\n> ⚠️ Lütfen gerçek bilgilerini gir. Aksi takdirde sunucumuzda ödül kazanamazsın!')
-      .setColor(0x5865F2)
-      .setFooter({ text: 'Kayıt Sistemi' })
-      .setTimestamp();
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('kayit_baslat').setLabel('📝 Kayıt Ol').setStyle(ButtonStyle.Primary)
-    );
-    await message.channel.send({ embeds: [embed], components: [row] });
-    await message.delete().catch(() => {});
-  }
-
-  // !kayitsil @kullanıcı
   if (message.content.startsWith('!kayitsil')) {
+    if (!yetkili) return;
     const hedef = message.mentions.members.first();
     if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitsil @kullanıcı`');
     try {
@@ -102,10 +83,11 @@ module.exports = async function messageHandler(client, message) {
       console.error(err);
       await message.reply('❌ Bir hata oluştu.');
     }
+    return;
   }
 
-  // !kayitbilgi @kullanıcı
   if (message.content.startsWith('!kayitbilgi')) {
+    if (!yetkili) return;
     const hedef = message.mentions.members.first();
     if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitbilgi @kullanıcı`');
 
@@ -127,7 +109,6 @@ module.exports = async function messageHandler(client, message) {
       });
     }
 
-    // Bellekte yoksa arşiv tara
     const arsivKanal = message.guild.channels.cache.get(process.env.ARSIV_KANAL_ID);
     if (!arsivKanal) return message.reply('❌ Arşiv kanalı bulunamadı.');
 
@@ -152,7 +133,7 @@ module.exports = async function messageHandler(client, message) {
 
     if (!bulunanMesaj) return message.reply('❌ Bu kullanıcıya ait kayıt arşivde bulunamadı.');
     const arsivEmbed = bulunanMesaj.embeds[0];
-    await message.reply({ embeds: [new EmbedBuilder()
+    return message.reply({ embeds: [new EmbedBuilder()
       .setTitle('🔍 Kayıt Bilgisi (Arşivden)')
       .setColor(0x5865F2)
       .addFields(arsivEmbed.fields)
@@ -161,8 +142,8 @@ module.exports = async function messageHandler(client, message) {
     });
   }
 
-  // !kayitguncelle @kullanıcı
   if (message.content.startsWith('!kayitguncelle')) {
+    if (!yetkili) return;
     const hedef = message.mentions.members.first();
     if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!kayitguncelle @kullanıcı`');
 
@@ -172,14 +153,14 @@ module.exports = async function messageHandler(client, message) {
         .setLabel('✏️ Güncelleme Formunu Aç')
         .setStyle(ButtonStyle.Secondary)
     );
-    await message.reply({
+    return message.reply({
       content: `**${hedef.user.tag}** kullanıcısının kaydını güncellemek için butona tıkla:`,
       components: [row]
     });
   }
 
-  // !istatistik
   if (message.content === '!istatistik') {
+    if (!yetkili) return;
     try {
       await message.guild.members.fetch();
       const kayitliUyeler = message.guild.members.cache.filter(m =>
@@ -188,7 +169,7 @@ module.exports = async function messageHandler(client, message) {
       const birHaftaOnce = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
       const buHaftaKayit = [...kayitVerisi.values()].filter(v => v.tarih >= birHaftaOnce).length;
 
-      await message.reply({ embeds: [new EmbedBuilder()
+      return message.reply({ embeds: [new EmbedBuilder()
         .setTitle('📊 Sunucu İstatistikleri')
         .setColor(0x5865F2)
         .addFields(
@@ -201,7 +182,32 @@ module.exports = async function messageHandler(client, message) {
       });
     } catch (err) {
       console.error(err);
-      await message.reply('❌ İstatistikler alınırken hata oluştu.');
+      return message.reply('❌ İstatistikler alınırken hata oluştu.');
     }
+  }
+
+  // ─── Sadece moderatör komutları ───
+  if (!isMod) return;
+
+  if (message.content.startsWith('!rolver')) {
+    return rolVer(message);
+  }
+
+  if (message.content.startsWith('!rolal')) {
+    return rolAl(message);
+  }
+
+  if (message.content === '!panel') {
+    const embed = new EmbedBuilder()
+      .setTitle('📋 Kayıt Formu')
+      .setDescription('**Sunucumuza Hoş Geldin!** 🌟\n\nKayıt olmak için aşağıdaki butona tıkla ve formu doldur.\nKayıt işlemi tamamlanınca **Kayıtlı Üye** rolü verilecektir.\n\n> ⚠️ Lütfen gerçek bilgilerini gir. Aksi takdirde sunucumuzda ödül kazanamazsın!')
+      .setColor(0x5865F2)
+      .setFooter({ text: 'Kayıt Sistemi' })
+      .setTimestamp();
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('kayit_baslat').setLabel('📝 Kayıt Ol').setStyle(ButtonStyle.Primary)
+    );
+    await message.channel.send({ embeds: [embed], components: [row] });
+    await message.delete().catch(() => {});
   }
 };
