@@ -16,7 +16,12 @@ async function rolVer(message) {
   }
 
   if (rol.position >= message.guild.members.me.roles.highest.position) {
-    return message.reply('Bu rol botun rolunden yukarda, veremem.');
+    return message.reply('Bu rol botun rolünden yukarda, veremem.');
+  }
+
+  // Komutu kullanan kişi hedeften düşük roldeyse reddet
+  if (message.member.roles.highest.position <= hedef.roles.highest.position) {
+    return message.reply('❌ Kendi rolünden yüksek veya eşit roldeki birine işlem yapamazsın.');
   }
 
   await hedef.roles.add(rol);
@@ -59,7 +64,12 @@ async function rolAl(message) {
   }
 
   if (rol.position >= message.guild.members.me.roles.highest.position) {
-    return message.reply('Bu rol botun rolunden yukarda, alamam.');
+    return message.reply('Bu rol botun rolünden yukarda, alamam.');
+  }
+
+  // Komutu kullanan kişi hedeften düşük roldeyse reddet
+  if (message.member.roles.highest.position <= hedef.roles.highest.position) {
+    return message.reply('❌ Kendi rolünden yüksek veya eşit roldeki birinin rolünü alamazsın.');
   }
 
   await hedef.roles.remove(rol);
