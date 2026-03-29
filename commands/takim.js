@@ -47,36 +47,4 @@ module.exports = async function takimKomutu(client, message) {
     embeds: [ilan],
     allowedMentions: { roles: takimRolId ? [takimRolId] : [] }
   });
-};      { name: '🎯 Aranan Rol', value: rol, inline: true },
-      { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
-    )
-    .setFooter({ text: 'İlgilenenler bu mesajı yanıtlayabilir' })
-    .setTimestamp();
-
-  await message.delete().catch(() => {});
-
-  // Takım Ara rolü varsa ping at, yoksa pingsiz gönder
-  const takimRolId = process.env.TAKIM_ROL_ID;
-  const pingMesaj = takimRolId ? `<@&${takimRolId}>` : null;
-
-  await message.channel.send({
-    content: pingMesaj,
-    embeds: [ilan],
-    allowedMentions: { roles: takimRolId ? [takimRolId] : [] }
-  });
-};
-  const ilan = new EmbedBuilder()
-    .setTitle('🎮 Takım Arkadaşı Aranıyor!')
-    .setColor(renk)
-    .setDescription(`<@${message.author.id}> takım arıyor, ilgilenenler DM atsın veya bu mesajı yanıtlasın!`)
-    .addFields(
-      { name: '🏅 Rank', value: rank, inline: true },
-      { name: '🎯 Aranan Rol', value: rol, inline: true },
-      { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
-    )
-    .setFooter({ text: 'İlgilenenler bu mesajı yanıtlayabilir' })
-    .setTimestamp();
-
-  await message.delete().catch(() => {});
-  await message.channel.send({ embeds: [ilan] });
 };
