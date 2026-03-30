@@ -2,8 +2,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const rankRenkleri = {
-  warrior: 0x808080, elite: 0x00AA00, master: 0x0000FF,
-  grandmaster: 0x9B59B6, epic: 0xE67E22, legend: 0xF1C40F, mythic: 0xE74C3C
+  epik: 0xE67E22, efsane: 0xF1C40F, mistik: 0xE74C3C,
+  sanliMistik: 0xC0392B, mistikZafer: 0x8E44AD, yuceMistik: 0xF39C12
 };
 
 const rolSecenekleri = [
@@ -22,13 +22,12 @@ const data = new SlashCommandBuilder()
     .setDescription('Rankın')
     .setRequired(true)
     .addChoices(
-      { name: '🩶 Warrior', value: 'warrior' },
-      { name: '💚 Elite', value: 'elite' },
-      { name: '💙 Master', value: 'master' },
-      { name: '💜 Grandmaster', value: 'grandmaster' },
-      { name: '🧡 Epic', value: 'epic' },
-      { name: '💛 Legend', value: 'legend' },
-      { name: '❤️ Mythic', value: 'mythic' }
+      { name: '🧡 Epik', value: 'epik' },
+      { name: '💛 Efsane', value: 'efsane' },
+      { name: '❤️ Mistik', value: 'mistik' },
+      { name: '✨ Şanlı Mistik', value: 'sanliMistik' },
+      { name: '💜 Mistik Zafer', value: 'mistikZafer' },
+      { name: '👑 Yüce Mistik', value: 'yuceMistik' }
     ))
   .addStringOption(opt => opt
     .setName('rolum')
@@ -85,7 +84,8 @@ async function execute(interaction, client) {
   const ign = kayit?.ign || null;
   const oyunId = kayit?.oyunId || null;
 
-  const rankAdi = rank.charAt(0).toUpperCase() + rank.slice(1);
+  const rankAdlari = { epik: 'Epik', efsane: 'Efsane', mistik: 'Mistik', sanliMistik: 'Şanlı Mistik', mistikZafer: 'Mistik Zafer', yuceMistik: 'Yüce Mistik' };
+  const rankAdi = rankAdlari[rank] || rank;
   const renk = rankRenkleri[rank] || 0x5865F2;
 
   const ilanFields = [
