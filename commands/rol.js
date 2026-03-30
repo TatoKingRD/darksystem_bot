@@ -1,108 +1,122 @@
 // commands/rol.js
-// !rolver @kullanici @rol — moderatore ozel
-// !rolal @kullanici @rol — moderatore ozel
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-const { EmbedBuilder } = require('discord.js');
+function isMod(member) {
+  return process.env.MODERATOR_ROL_ID
+    ? member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+    : member.permissions.has('Administrator');
+}
 
-async function rolVer(message) {
-  const hedef = message.mentions.members.first();
-  const rol = message.mentions.roles.first();
+// ─── /rolver ───
+const rolverData = new SlashCommandBuilder()
+  .setName('rolver')
+  .setDescription('Kullanıcıya rol verir [Moderatör]')
+  .addUserOption(opt => opt.setName('kullanici').setDescription('Kullanıcı').setRequired(true))
+  .addRoleOption(opt => opt.setName('rol').setDescription('Verilecek rol').setRequired(true));
 
-  if (!hedef) return message.reply('Kullanici etiketle. Ornek: `!rolver @kullanici @rol`');
-  if (!rol) return message.reply('Rol etiketle. Ornek: `!rolver @kullanici @rol`');
+async function rolverExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
 
-  if (hedef.roles.cache.has(rol.id)) {
-    return message.reply(`**${hedef.user.tag}** zaten **${rol.name}** rolune sahip.`);
-  }
+  const hedef = interaction.options.getMember('kullanici');
+  const rol = interaction.options.getRole('rol');
 
-  if (rol.position >= message.guild.members.me.roles.highest.position) {
-    return message.reply('❌ Bu rol botun rolünden yukarda, veremem.');
-  }
+  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
 
-  // Komutu kullanan kişi vermek istediği rolden düşükteyse reddet
-  if (rol.position >= message.member.roles.highest.position) {
-    return message.reply('❌ Kendi rolünden yüksek veya eşit bir rolü veremezsin.');
-  }
+  if (hedef.roles.cache.has(rol.id))
+    return interaction.reply({ content: `**${hedef.user.tag}** zaten **${rol.name}** rolüne sahip.`, ephemeral: true });
 
-  // Komutu kullanan kişi hedeften düşük roldeyse reddet
-  if (message.member.roles.highest.position <= hedef.roles.highest.position) {
-    return message.reply('❌ Kendi rolünden yüksek veya eşit roldeki birine işlem yapamazsın.');
-  }
+  if (rol.position >= interaction.guild.members.me.roles.highest.position)
+    return interaction.reply({ content: '❌ Bu rol botun rolünden yukarda, veremem.', ephemeral: true });
+
+  if (rol.position >= interaction.member.roles.highest.position)
+    return interaction.reply({ content: '❌ Kendi rolünden yüksek veya eşit bir rolü veremezsin.', ephemeral: true });
+
+  if (interaction.member.roles.highest.position <= hedef.roles.highest.position)
+    return interaction.reply({ content: '❌ Kendi rolünden yüksek veya eşit roldeki birine işlem yapamazsın.', ephemeral: true });
 
   await hedef.roles.add(rol);
 
-  const logKanal = message.guild.channels.cache.get(process.env.LOG_KANAL_ID);
+  const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
   if (logKanal) {
     await logKanal.send({ embeds: [new EmbedBuilder()
-      .setTitle('Rol Verildi')
+      .setTitle('✅ Rol Verildi')
       .setColor(0x57F287)
       .addFields(
-        { name: 'Kullanici', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-        { name: 'Verilen Rol', value: `<@&${rol.id}>`, inline: true },
-        { name: 'Islem Yapan', value: `<@${message.author.id}>`, inline: true },
-        { name: 'Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+        { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+        { name: '🎭 Verilen Rol', value: `<@&${rol.id}>`, inline: true },
+        { name: '🛡️ İşlem Yapan', value: `<@${interaction.user.id}>`, inline: true },
+        { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
       )
       .setTimestamp()]
     });
   }
 
-  await message.reply({ embeds: [new EmbedBuilder()
-    .setTitle('Rol Verildi')
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
+    .setTitle('✅ Rol Verildi')
     .setColor(0x57F287)
     .addFields(
-      { name: 'Kullanici', value: `<@${hedef.id}>`, inline: true },
-      { name: 'Rol', value: `<@&${rol.id}>`, inline: true }
+      { name: '👤 Kullanıcı', value: `<@${hedef.id}>`, inline: true },
+      { name: '🎭 Rol', value: `<@&${rol.id}>`, inline: true }
     )
     .setTimestamp()]
   });
 }
 
-async function rolAl(message) {
-  const hedef = message.mentions.members.first();
-  const rol = message.mentions.roles.first();
+// ─── /rolal ───
+const rotalData = new SlashCommandBuilder()
+  .setName('rolal')
+  .setDescription('Kullanıcıdan rol alır [Moderatör]')
+  .addUserOption(opt => opt.setName('kullanici').setDescription('Kullanıcı').setRequired(true))
+  .addRoleOption(opt => opt.setName('rol').setDescription('Alınacak rol').setRequired(true));
 
-  if (!hedef) return message.reply('Kullanici etiketle. Ornek: `!rolal @kullanici @rol`');
-  if (!rol) return message.reply('Rol etiketle. Ornek: `!rolal @kullanici @rol`');
+async function rotalExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
 
-  if (!hedef.roles.cache.has(rol.id)) {
-    return message.reply(`**${hedef.user.tag}** zaten **${rol.name}** rolune sahip degil.`);
-  }
+  const hedef = interaction.options.getMember('kullanici');
+  const rol = interaction.options.getRole('rol');
 
-  if (rol.position >= message.guild.members.me.roles.highest.position) {
-    return message.reply('Bu rol botun rolünden yukarda, alamam.');
-  }
+  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
 
-  // Komutu kullanan kişi hedeften düşük roldeyse reddet
-  if (message.member.roles.highest.position <= hedef.roles.highest.position) {
-    return message.reply('❌ Kendi rolünden yüksek veya eşit roldeki birinin rolünü alamazsın.');
-  }
+  if (!hedef.roles.cache.has(rol.id))
+    return interaction.reply({ content: `**${hedef.user.tag}** zaten **${rol.name}** rolüne sahip değil.`, ephemeral: true });
+
+  if (rol.position >= interaction.guild.members.me.roles.highest.position)
+    return interaction.reply({ content: '❌ Bu rol botun rolünden yukarda, alamam.', ephemeral: true });
+
+  if (interaction.member.roles.highest.position <= hedef.roles.highest.position)
+    return interaction.reply({ content: '❌ Kendi rolünden yüksek veya eşit roldeki birinin rolünü alamazsın.', ephemeral: true });
 
   await hedef.roles.remove(rol);
 
-  const logKanal = message.guild.channels.cache.get(process.env.LOG_KANAL_ID);
+  const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
   if (logKanal) {
     await logKanal.send({ embeds: [new EmbedBuilder()
-      .setTitle('Rol Alindi')
+      .setTitle('❌ Rol Alındı')
       .setColor(0xFF0000)
       .addFields(
-        { name: 'Kullanici', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-        { name: 'Alinan Rol', value: `<@&${rol.id}>`, inline: true },
-        { name: 'Islem Yapan', value: `<@${message.author.id}>`, inline: true },
-        { name: 'Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+        { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+        { name: '🎭 Alınan Rol', value: `<@&${rol.id}>`, inline: true },
+        { name: '🛡️ İşlem Yapan', value: `<@${interaction.user.id}>`, inline: true },
+        { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
       )
       .setTimestamp()]
     });
   }
 
-  await message.reply({ embeds: [new EmbedBuilder()
-    .setTitle('Rol Alindi')
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
+    .setTitle('❌ Rol Alındı')
     .setColor(0xFF0000)
     .addFields(
-      { name: 'Kullanici', value: `<@${hedef.id}>`, inline: true },
-      { name: 'Rol', value: `<@&${rol.id}>`, inline: true }
+      { name: '👤 Kullanıcı', value: `<@${hedef.id}>`, inline: true },
+      { name: '🎭 Rol', value: `<@&${rol.id}>`, inline: true }
     )
     .setTimestamp()]
   });
 }
 
-module.exports = { rolVer, rolAl };
+const commands = [
+  { data: rolverData, execute: rolverExecute },
+  { data: rotalData, execute: rotalExecute },
+];
+
+module.exports = { commands };
