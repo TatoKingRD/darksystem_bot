@@ -159,10 +159,21 @@ module.exports = async function interactionHandler(client, interaction) {
     }
 
     try {
-      if (process.env.KAYITLI_ROL_ID) await member.roles.add(process.env.KAYITLI_ROL_ID);
-      if (process.env.KAYITSIZ_ROL_ID) await member.roles.remove(process.env.KAYITSIZ_ROL_ID).catch(() => {});
+      // Member'ı fresh fetch et — cache'deki eski veriyle rol sorunlarını önler
+      const freshMember = await guild.members.fetch(member.id).catch(() => member);
+
+      if (process.env.KAYITLI_ROL_ID) {
+        await freshMember.roles.add(process.env.KAYITLI_ROL_ID).catch(err => {
+          console.error('Kayıtlı rol eklenemedi:', err);
+        });
+      }
+      if (process.env.KAYITSIZ_ROL_ID) {
+        await freshMember.roles.remove(process.env.KAYITSIZ_ROL_ID).catch(err => {
+          console.error('Kayıtsız rol alınamadı:', err);
+        });
+      }
       const nick = ign ? `${isim} (${ign}) | ${yasNum}` : `${isim} | ${yasNum}`;
-      await member.setNickname(nick).catch(() => {});
+      await freshMember.setNickname(nick).catch(() => {});
 
       kayitVerisi.set(member.id, { isim, yas: yasNum, ign, oyunId, neredenDuydun, tarih: Math.floor(Date.now() / 1000) });
 
