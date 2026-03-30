@@ -21,7 +21,7 @@ module.exports = async function yardimKomutu(message, isMod, isAsis) {
         { name: '🔁 !tekrarla komut dakika', value: 'Hatırlatma başlatır. Örnek: !tekrarla bump 125', inline: false },
         { name: '⏹️ !durdur komut', value: 'Hatırlatmayı durdurur. Örnek: !durdur bump', inline: false },
         { name: '📋 !gorevler', value: 'Aktif hatırlatmaları listeler.', inline: false },
-        { name: '🎮 !takim rank rol koridor', value: 'Takım ilanı oluşturur, genel\'e bildirim gider.', inline: false },
+        { name: '🎮 !takim rank rolüm aranan_rol [koridor]', value: 'Takım ilanı oluşturur, genel\'e bildirim gider.\nÖrnek: `!takim Mythic ADC Mid`', inline: false },
         { name: '❓ !yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Moderatör Paneli' })
@@ -40,7 +40,7 @@ module.exports = async function yardimKomutu(message, isMod, isAsis) {
         { name: '⚠️ !uyar @kullanıcı sebep', value: 'Uyarı verir, log kanalına kaydeder.', inline: false },
         { name: '📋 !uyarilar @kullanıcı', value: 'Uyarı geçmişini gösterir.', inline: false },
         { name: '🗑️ !uyarisil @kullanıcı numara', value: 'Belirtilen uyarıyı siler.', inline: false },
-        { name: '🎮 !takim rank rol koridor', value: 'Takım ilanı oluşturur, genel\'e bildirim gider.', inline: false },
+        { name: '🎮 !takim rank rolüm aranan_rol [koridor]', value: 'Takım ilanı oluşturur, genel\'e bildirim gider.\nÖrnek: `!takim Epic Support Tank`', inline: false },
         { name: '❓ !yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Asistan Paneli' })
@@ -52,7 +52,7 @@ module.exports = async function yardimKomutu(message, isMod, isAsis) {
       .setColor(0x5865F2)
       .setDescription('Merhaba! Sunucuda kullanabileceğin komutlar bunlar:')
       .addFields(
-        { name: '🎮 !takim rank rol koridor', value: 'Takım arkadaşı bulmak için ilan oluşturur.\nÖrnek: `!takim Mythic Nişancı Orta`', inline: false },
+        { name: '🎮 !takim rank rolüm aranan_rol [koridor]', value: 'Takım arkadaşı bulmak için ilan oluşturur.\nÖrnek: `!takim Mythic ADC Mid`', inline: false },
         { name: '❓ !yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Yardım Menüsü' })
