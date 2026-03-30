@@ -70,6 +70,9 @@ client.once('ready', async () => {
   for (const [, guild] of client.guilds.cache) {
     await arsivdenYukle(guild, kayitVerisi).catch(console.error);
   }
+
+  const { gorevleriYukle } = require('./commands/tekrarla');
+  await gorevleriYukle(client).catch(console.error);
 });
 
 client.login(process.env.BOT_TOKEN);
