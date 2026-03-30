@@ -1,10 +1,7 @@
 // commands/tekrarla.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 
-const GOREV_DOSYASI = path.join(__dirname, '../gorevler.json');
-const aktifGorevler = new Map();
+const aktifGorevler = new Map(); // komutAdi => { interval, kanal, sure, baslatan, baslangic, mesajId }
 
 function isMod(member) {
   return process.env.MODERATOR_ROL_ID
@@ -12,15 +9,42 @@ function isMod(member) {
     : member.permissions.has('Administrator');
 }
 
-function dosyayaKaydet() {
-  const kayit = {};
-  for (const [ad, g] of aktifGorevler.entries()) {
-    kayit[ad] = { kanalId: g.kanal.id, sure: g.sure, baslatan: g.baslatan, baslangic: g.baslangic };
+// Görev kanalına kayıt mesajı gönder
+async function kanalaKaydet(client, komutAdi, kanalId, sure, baslatanId, baslangic) {
+  const gorevKanal = client.channels.cache.get(process.env.GOREV_KANAL_ID);
+  if (!gorevKanal) return null;
+
+  // Aynı komut için eski mesaj varsa sil
+  const eskiGorev = aktifGorevler.get(komutAdi);
+  if (eskiGorev?.mesajId) {
+    await gorevKanal.messages.delete(eskiGorev.mesajId).catch(() => {});
   }
-  fs.writeFileSync(GOREV_DOSYASI, JSON.stringify(kayit, null, 2));
+
+  const msg = await gorevKanal.send({ embeds: [new EmbedBuilder()
+    .setTitle('🔁 Aktif Görev')
+    .setColor(0x57F287)
+    .addFields(
+      { name: 'komut', value: komutAdi, inline: true },
+      { name: 'kanalId', value: kanalId, inline: true },
+      { name: 'sure', value: `${sure}`, inline: true },
+      { name: 'baslatan', value: baslatanId, inline: true },
+      { name: 'baslangic', value: `${baslangic}`, inline: true },
+    )
+    .setFooter({ text: 'GOREV_KAYIT' })
+  ]}).catch(() => null);
+
+  return msg?.id || null;
 }
 
-function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic) {
+// Görev kanalından kaydı sil
+async function kanalданSil(client, mesajId) {
+  if (!mesajId) return;
+  const gorevKanal = client.channels.cache.get(process.env.GOREV_KANAL_ID);
+  if (!gorevKanal) return;
+  await gorevKanal.messages.delete(mesajId).catch(() => {});
+}
+
+function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = null) {
   if (aktifGorevler.has(komutAdi)) {
     clearInterval(aktifGorevler.get(komutAdi).interval);
     aktifGorevler.delete(komutAdi);
@@ -55,22 +79,49 @@ function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic) {
   }
 
   const interval = setInterval(hatirlatmaGonder, sure * 60 * 1000);
-  aktifGorevler.set(komutAdi, { interval, kanal, sure, baslatan: baslatanId, baslangic });
+  aktifGorevler.set(komutAdi, { interval, kanal, sure, baslatan: baslatanId, baslangic, mesajId });
 }
 
-// Bot restart'ta görevleri yükle
+// Bot restart'ta görev kanalından görevleri yükle
 async function gorevleriYukle(client) {
-  if (!fs.existsSync(GOREV_DOSYASI)) return;
-  let kayit;
-  try { kayit = JSON.parse(fs.readFileSync(GOREV_DOSYASI, 'utf8')); } catch { return; }
+  const gorevKanal = client.channels.cache.get(process.env.GOREV_KANAL_ID);
+  if (!gorevKanal) { console.log('GOREV_KANAL_ID bulunamadı, görevler yüklenemedi.'); return; }
 
   let yuklenen = 0;
-  for (const [komutAdi, g] of Object.entries(kayit)) {
-    const kanal = await client.channels.fetch(g.kanalId).catch(() => null);
-    if (!kanal) { console.log(`Görev yüklenemedi (kanal bulunamadı): ${komutAdi}`); continue; }
-    gorevBaslat(komutAdi, kanal, g.sure, g.baslatan, g.baslangic);
-    yuklenen++;
+  let lastId = null;
+
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
+    const mesajlar = await gorevKanal.messages.fetch(options).catch(() => null);
+    if (!mesajlar || mesajlar.size === 0) break;
+
+    for (const [mesajId, msg] of mesajlar) {
+      if (!msg.embeds.length || msg.embeds[0].footer?.text !== 'GOREV_KAYIT') continue;
+
+      const fields = {};
+      for (const f of msg.embeds[0].fields) fields[f.name] = f.value;
+
+      const komutAdi = fields['komut'];
+      const kanalId = fields['kanalId'];
+      const sure = parseInt(fields['sure']);
+      const baslatanId = fields['baslatan'];
+      const baslangic = parseInt(fields['baslangic']);
+
+      if (!komutAdi || !kanalId || !sure) continue;
+      if (aktifGorevler.has(komutAdi)) continue;
+
+      const kanal = await client.channels.fetch(kanalId).catch(() => null);
+      if (!kanal) { console.log(`Görev kanalı bulunamadı: ${komutAdi}`); continue; }
+
+      gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId);
+      yuklenen++;
+    }
+
+    if (mesajlar.size < 100) break;
+    lastId = mesajlar.last().id;
   }
+
   if (yuklenen > 0) console.log(`${yuklenen} tekrarla görevi yeniden başlatıldı.`);
 }
 
@@ -89,8 +140,8 @@ async function tekrarlaExecute(interaction) {
   const kanal = interaction.channel;
   const baslangic = Math.floor(Date.now() / 1000);
 
-  gorevBaslat(komutAdi, kanal, sure, interaction.user.id, baslangic);
-  dosyayaKaydet();
+  const mesajId = await kanalaKaydet(interaction.client, komutAdi, kanal.id, sure, interaction.user.id, baslangic);
+  gorevBaslat(komutAdi, kanal, sure, interaction.user.id, baslangic, mesajId);
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('✅ Görev Başlatıldı')
@@ -116,9 +167,10 @@ async function durdurExecute(interaction) {
   const komutAdi = interaction.options.getString('komut').toLowerCase().replace('/', '');
   if (!aktifGorevler.has(komutAdi)) return interaction.reply({ content: `❌ \`${komutAdi}\` için aktif görev bulunamadı.`, ephemeral: true });
 
-  clearInterval(aktifGorevler.get(komutAdi).interval);
+  const gorev = aktifGorevler.get(komutAdi);
+  clearInterval(gorev.interval);
+  await kanalданSil(interaction.client, gorev.mesajId);
   aktifGorevler.delete(komutAdi);
-  dosyayaKaydet();
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('⏹️ Görev Durduruldu')
