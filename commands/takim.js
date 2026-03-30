@@ -1,34 +1,36 @@
 // commands/takim.js
-// Kullanim: !takim [rank] [rol] [koridor]
-// Ornek:    !takim Mythic Nisanci Orta
+// Kullanim: !takim [rank] [kendi_rol] [aranan_rol] [koridor]
+// Ornek:    !takim Mythic ADC Mid
+// Ornek:    !takim Epic Support Tank Kanat
 
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = async function takimKomutu(client, message) {
   const args = message.content.slice('!takim'.length).trim().split(' ').filter(a => a.length > 0);
 
-  if (args.length < 2) {
+  if (args.length < 3) {
     return message.reply({ embeds: [new EmbedBuilder()
       .setTitle('❌ Hatalı Kullanım')
       .setColor(0xFF0000)
       .setDescription(
-        'Doğru kullanım:\n`!takim [rank] [rol] [koridor]`\n\n' +
+        'Doğru kullanım:\n`!takim [rank] [kendi_rol] [aranan_rol] [koridor]`\n\n' +
         '**Örnekler:**\n' +
-        '`!takim Mythic Nişancı`\n' +
-        '`!takim Epic Tank Orta`\n' +
-        '`!takim Legend Destek Kanat`'
+        '`!takim Mythic ADC Mid`\n' +
+        '`!takim Epic Support Tank Kanat`\n' +
+        '`!takim Legend Destek Savaşçı Üst`'
       )
       .addFields(
         { name: '🏅 Rank', value: 'Warrior · Elite · Master · Grandmaster · Epic · Legend · Mythic', inline: false },
-        { name: '🎮 Rol', value: 'Nişancı · Suikastçı · Savaşçı · Tank · Büyücü · Destek', inline: false },
+        { name: '🎮 Roller', value: 'Nişancı · Suikastçı · Savaşçı · Tank · Büyücü · Destek', inline: false },
         { name: '🗺️ Koridor', value: 'Üst · Orta · Kanat · Jungler · Roaming (opsiyonel)', inline: false }
       )]
     });
   }
 
   const rank = args[0];
-  const rol = args[1];
-  const koridor = args[2] || null;
+  const kendiRol = args[1];
+  const arananRol = args[2];
+  const koridor = args[3] || null;
 
   // Kayıt verisinden IGN ve Oyun ID çek
   const kayitVerisi = client.kayitVerisi;
@@ -44,7 +46,8 @@ module.exports = async function takimKomutu(client, message) {
 
   const ilanFields = [
     { name: '🏅 Rank', value: rank, inline: true },
-    { name: '🎮 Aranan Rol', value: rol, inline: true },
+    { name: '🎮 Rolüm', value: kendiRol, inline: true },
+    { name: '🔍 Aranan Rol', value: arananRol, inline: true },
     { name: '👤 Oyuncu', value: `<@${message.author.id}>`, inline: true }
   ];
   if (koridor) ilanFields.push({ name: '🗺️ Koridor', value: koridor, inline: true });
@@ -74,7 +77,7 @@ module.exports = async function takimKomutu(client, message) {
     if (genelKanal) {
       const koridorYazi = koridor ? ` **${koridor}** koridorunda` : '';
       let description =
-        `<@${message.author.id}> **${rank}** rankında **${rol}** olarak${koridorYazi} oynayacak, yanına arkadaş arıyor — birlikte girmek isteyen yok mu? 😢\n\n`;
+        `<@${message.author.id}> **${rank}** rankında **${kendiRol}** olarak${koridorYazi} oynuyor, **${arananRol}** arıyor — girmek isteyen yok mu? 😢\n\n`;
 
       if (ign || oyunId) {
         description += `Eklemek için:\n`;
