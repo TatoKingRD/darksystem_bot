@@ -1,7 +1,7 @@
 // commands/takim.js
 // Kullanim: !takim [rank] [kendi_rol] [aranan_rol] [koridor]
-// Ornek:    !takim Mythic ADC Mid
-// Ornek:    !takim Epic Support Tank Kanat
+// Ornek:    !takim Mythic Nisanci Mid
+// Ornek:    !takim Epic ADC Support Kanat
 
 const { EmbedBuilder } = require('discord.js');
 
@@ -15,9 +15,9 @@ module.exports = async function takimKomutu(client, message) {
       .setDescription(
         'Doğru kullanım:\n`!takim [rank] [kendi_rol] [aranan_rol] [koridor]`\n\n' +
         '**Örnekler:**\n' +
-        '`!takim Mythic ADC Mid`\n' +
-        '`!takim Epic Support Tank Kanat`\n' +
-        '`!takim Legend Destek Savaşçı Üst`'
+        '`!takim Mythic Nişancı Mid`\n' +
+        '`!takim Epic ADC Support Kanat`\n' +
+        '`!takim Legend Destek Tank Üst`'
       )
       .addFields(
         { name: '🏅 Rank', value: 'Warrior · Elite · Master · Grandmaster · Epic · Legend · Mythic', inline: false },
@@ -89,10 +89,12 @@ module.exports = async function takimKomutu(client, message) {
       description += `👉 <#${message.channel.id}>`;
 
       await genelKanal.send({
+        content: takimRolId ? `<@&${takimRolId}>` : null,
         embeds: [new EmbedBuilder()
           .setColor(renk)
           .setDescription(description)
-          .setTimestamp()]
+          .setTimestamp()],
+        allowedMentions: { roles: takimRolId ? [takimRolId] : [] }
       });
     }
   }
