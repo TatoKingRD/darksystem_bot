@@ -6,6 +6,14 @@ const rankRenkleri = {
   grandmaster: 0x9B59B6, epic: 0xE67E22, legend: 0xF1C40F, mythic: 0xE74C3C
 };
 
+const rolSecenekleri = [
+  { name: '🏹 ADC (Gold Koridor)', value: 'ADC (Gold Koridor)' },
+  { name: '🗡️ Jungler', value: 'Jungler' },
+  { name: '⚔️ EXP Koridor', value: 'EXP Koridor' },
+  { name: '🛡️ Roam', value: 'Roam' },
+  { name: '🔮 Mid', value: 'Mid' },
+];
+
 const data = new SlashCommandBuilder()
   .setName('takim')
   .setDescription('Takım arkadaşı arama ilanı oluşturur')
@@ -26,43 +34,51 @@ const data = new SlashCommandBuilder()
     .setName('rolum')
     .setDescription('Senin rolün')
     .setRequired(true)
-    .addChoices(
-      { name: '🏹 Nişancı (ADC)', value: 'Nişancı (ADC)' },
-      { name: '🗡️ Suikastçı', value: 'Suikastçı' },
-      { name: '⚔️ Savaşçı', value: 'Savaşçı' },
-      { name: '🛡️ Tank', value: 'Tank' },
-      { name: '🔮 Büyücü', value: 'Büyücü' },
-      { name: '💊 Destek', value: 'Destek' }
-    ))
+    .addChoices(...rolSecenekleri))
   .addStringOption(opt => opt
-    .setName('aranan_rol')
-    .setDescription('Aradığın rol')
+    .setName('aranan_rol_1')
+    .setDescription('Aradığın rol (1)')
     .setRequired(true)
-    .addChoices(
-      { name: '🏹 Nişancı (ADC)', value: 'Nişancı (ADC)' },
-      { name: '🗡️ Suikastçı', value: 'Suikastçı' },
-      { name: '⚔️ Savaşçı', value: 'Savaşçı' },
-      { name: '🛡️ Tank', value: 'Tank' },
-      { name: '🔮 Büyücü', value: 'Büyücü' },
-      { name: '💊 Destek', value: 'Destek' }
-    ))
+    .addChoices(...rolSecenekleri))
+  .addStringOption(opt => opt
+    .setName('aranan_rol_2')
+    .setDescription('Aradığın rol (2) (opsiyonel)')
+    .setRequired(false)
+    .addChoices(...rolSecenekleri))
+  .addStringOption(opt => opt
+    .setName('aranan_rol_3')
+    .setDescription('Aradığın rol (3) (opsiyonel)')
+    .setRequired(false)
+    .addChoices(...rolSecenekleri))
+  .addStringOption(opt => opt
+    .setName('aranan_rol_4')
+    .setDescription('Aradığın rol (4) (opsiyonel)')
+    .setRequired(false)
+    .addChoices(...rolSecenekleri))
   .addStringOption(opt => opt
     .setName('koridor')
-    .setDescription('Koridor (opsiyonel)')
+    .setDescription('Oynadığın koridor (opsiyonel)')
     .setRequired(false)
     .addChoices(
-      { name: '⬆️ Üst', value: 'Üst' },
-      { name: '➡️ Orta', value: 'Orta' },
-      { name: '↗️ Kanat', value: 'Kanat' },
+      { name: '🔮 Mid', value: 'Mid' },
+      { name: '🏹 Gold Koridor', value: 'Gold Koridor' },
+      { name: '⚔️ EXP Koridor', value: 'EXP Koridor' },
       { name: '🌲 Jungler', value: 'Jungler' },
-      { name: '🌀 Roaming', value: 'Roaming' }
+      { name: '🛡️ Roam', value: 'Roam' }
     ));
 
 async function execute(interaction, client) {
   const rank = interaction.options.getString('rank');
   const kendiRol = interaction.options.getString('rolum');
-  const arananRol = interaction.options.getString('aranan_rol');
   const koridor = interaction.options.getString('koridor');
+
+  // Aranan rolleri topla (tekrar edenleri filtrele)
+  const arananRoller = [
+    interaction.options.getString('aranan_rol_1'),
+    interaction.options.getString('aranan_rol_2'),
+    interaction.options.getString('aranan_rol_3'),
+    interaction.options.getString('aranan_rol_4'),
+  ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
 
   const kayitVerisi = client.kayitVerisi;
   const kayit = kayitVerisi?.get(interaction.user.id);
@@ -75,7 +91,7 @@ async function execute(interaction, client) {
   const ilanFields = [
     { name: '🏅 Rank', value: rankAdi, inline: true },
     { name: '🎮 Rolüm', value: kendiRol, inline: true },
-    { name: '🔍 Aranan Rol', value: arananRol, inline: true },
+    { name: '🔍 Aranan Roller', value: arananRoller.join(', '), inline: true },
     { name: '👤 Oyuncu', value: `<@${interaction.user.id}>`, inline: true }
   ];
   if (koridor) ilanFields.push({ name: '🗺️ Koridor', value: koridor, inline: true });
@@ -103,7 +119,7 @@ async function execute(interaction, client) {
     const genelKanal = interaction.guild.channels.cache.get(process.env.GENEL_KANAL_ID);
     if (genelKanal && genelKanal.id !== interaction.channelId) {
       const koridorYazi = koridor ? ` **${koridor}** koridorunda` : '';
-      let description = `<@${interaction.user.id}> **${rankAdi}** rankında **${kendiRol}** olarak${koridorYazi} oynuyor, **${arananRol}** arıyor — girmek isteyen yok mu? 😢\n\n`;
+      let description = `<@${interaction.user.id}> **${rankAdi}** rankında **${kendiRol}** olarak${koridorYazi} oynuyor, **${arananRoller.join(' / ')}** arıyor — girmek isteyen yok mu? 😢\n\n`;
 
       if (ign || oyunId) {
         description += `Eklemek için:\n`;
