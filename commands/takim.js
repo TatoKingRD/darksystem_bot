@@ -54,22 +54,11 @@ const data = new SlashCommandBuilder()
     .setDescription('Aradığın rol (4) (opsiyonel)')
     .setRequired(false)
     .addChoices(...rolSecenekleri))
-  .addStringOption(opt => opt
-    .setName('koridor')
-    .setDescription('Oynadığın koridor (opsiyonel)')
-    .setRequired(false)
-    .addChoices(
-      { name: '🔮 Mid', value: 'Mid' },
-      { name: '🏹 Gold Koridor', value: 'Gold Koridor' },
-      { name: '⚔️ EXP Koridor', value: 'EXP Koridor' },
-      { name: '🌲 Jungler', value: 'Jungler' },
-      { name: '🛡️ Roam', value: 'Roam' }
-    ));
+
 
 async function execute(interaction, client) {
   const rank = interaction.options.getString('rank');
   const kendiRol = interaction.options.getString('rolum');
-  const koridor = interaction.options.getString('koridor');
 
   // Aranan rolleri topla (tekrar edenleri filtrele)
   const arananRoller = [
@@ -94,7 +83,6 @@ async function execute(interaction, client) {
     { name: '🔍 Aranan Roller', value: arananRoller.join(', '), inline: true },
     { name: '👤 Oyuncu', value: `<@${interaction.user.id}>`, inline: true }
   ];
-  if (koridor) ilanFields.push({ name: '🗺️ Koridor', value: koridor, inline: true });
   if (ign) ilanFields.push({ name: '🎯 IGN', value: ign, inline: true });
   if (oyunId) ilanFields.push({ name: '🆔 Oyun ID', value: oyunId, inline: true });
 
@@ -118,7 +106,7 @@ async function execute(interaction, client) {
   if (process.env.GENEL_KANAL_ID) {
     const genelKanal = interaction.guild.channels.cache.get(process.env.GENEL_KANAL_ID);
     if (genelKanal && genelKanal.id !== interaction.channelId) {
-      const koridorYazi = koridor ? ` **${koridor}** koridorunda` : '';
+      const koridorYazi = '';
       let description = `<@${interaction.user.id}> **${rankAdi}** rankında **${kendiRol}** olarak${koridorYazi} oynuyor, **${arananRoller.join(' / ')}** arıyor — girmek isteyen yok mu? 😢\n\n`;
 
       if (ign || oyunId) {
