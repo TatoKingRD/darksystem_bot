@@ -1,6 +1,9 @@
 // commands/tekrarla.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
+const GOREV_DOSYASI = path.join(__dirname, '../gorevler.json');
 const aktifGorevler = new Map();
 
 function isMod(member) {
@@ -9,20 +12,15 @@ function isMod(member) {
     : member.permissions.has('Administrator');
 }
 
-// ─── /tekrarla ───
-const tekrarlaData = new SlashCommandBuilder()
-  .setName('tekrarla')
-  .setDescription('Belirli aralıklarla hatırlatma mesajı gönderir [Moderatör]')
-  .addStringOption(opt => opt.setName('komut').setDescription('Hatırlatılacak komut adı (örn: bump)').setRequired(true))
-  .addIntegerOption(opt => opt.setName('dakika').setDescription('Kaç dakikada bir hatırlatılsın?').setRequired(true).setMinValue(1));
+function dosyayaKaydet() {
+  const kayit = {};
+  for (const [ad, g] of aktifGorevler.entries()) {
+    kayit[ad] = { kanalId: g.kanal.id, sure: g.sure, baslatan: g.baslatan, baslangic: g.baslangic };
+  }
+  fs.writeFileSync(GOREV_DOSYASI, JSON.stringify(kayit, null, 2));
+}
 
-async function tekrarlaExecute(interaction) {
-  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
-
-  const komutAdi = interaction.options.getString('komut').toLowerCase().replace('/', '');
-  const sure = interaction.options.getInteger('dakika');
-  const kanal = interaction.channel;
-
+function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic) {
   if (aktifGorevler.has(komutAdi)) {
     clearInterval(aktifGorevler.get(komutAdi).interval);
     aktifGorevler.delete(komutAdi);
@@ -45,7 +43,7 @@ async function tekrarlaExecute(interaction) {
           .setDescription(`\`/${komutAdi}\` komutunu çalıştırma zamanı geldi!`)
           .addFields(
             { name: '⏱️ Tekrar Süresi', value: `${sure} dakikada bir`, inline: true },
-            { name: '▶️ Başlatan', value: `<@${interaction.user.id}>`, inline: true }
+            { name: '▶️ Başlatan', value: `<@${baslatanId}>`, inline: true }
           )
           .setFooter({ text: 'Durdurmak için: /durdur ' + komutAdi })
           .setTimestamp()],
@@ -56,9 +54,43 @@ async function tekrarlaExecute(interaction) {
     }
   }
 
-  await hatirlatmaGonder();
   const interval = setInterval(hatirlatmaGonder, sure * 60 * 1000);
-  aktifGorevler.set(komutAdi, { interval, kanal, sure, baslatan: interaction.user.id, baslangic: Math.floor(Date.now() / 1000) });
+  aktifGorevler.set(komutAdi, { interval, kanal, sure, baslatan: baslatanId, baslangic });
+}
+
+// Bot restart'ta görevleri yükle
+async function gorevleriYukle(client) {
+  if (!fs.existsSync(GOREV_DOSYASI)) return;
+  let kayit;
+  try { kayit = JSON.parse(fs.readFileSync(GOREV_DOSYASI, 'utf8')); } catch { return; }
+
+  let yuklenen = 0;
+  for (const [komutAdi, g] of Object.entries(kayit)) {
+    const kanal = await client.channels.fetch(g.kanalId).catch(() => null);
+    if (!kanal) { console.log(`Görev yüklenemedi (kanal bulunamadı): ${komutAdi}`); continue; }
+    gorevBaslat(komutAdi, kanal, g.sure, g.baslatan, g.baslangic);
+    yuklenen++;
+  }
+  if (yuklenen > 0) console.log(`${yuklenen} tekrarla görevi yeniden başlatıldı.`);
+}
+
+// ─── /tekrarla ───
+const tekrarlaData = new SlashCommandBuilder()
+  .setName('tekrarla')
+  .setDescription('Belirli aralıklarla hatırlatma mesajı gönderir [Moderatör]')
+  .addStringOption(opt => opt.setName('komut').setDescription('Hatırlatılacak komut adı (örn: bump)').setRequired(true))
+  .addIntegerOption(opt => opt.setName('dakika').setDescription('Kaç dakikada bir hatırlatılsın?').setRequired(true).setMinValue(1));
+
+async function tekrarlaExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const komutAdi = interaction.options.getString('komut').toLowerCase().replace('/', '');
+  const sure = interaction.options.getInteger('dakika');
+  const kanal = interaction.channel;
+  const baslangic = Math.floor(Date.now() / 1000);
+
+  gorevBaslat(komutAdi, kanal, sure, interaction.user.id, baslangic);
+  dosyayaKaydet();
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('✅ Görev Başlatıldı')
@@ -86,6 +118,7 @@ async function durdurExecute(interaction) {
 
   clearInterval(aktifGorevler.get(komutAdi).interval);
   aktifGorevler.delete(komutAdi);
+  dosyayaKaydet();
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('⏹️ Görev Durduruldu')
@@ -123,4 +156,4 @@ const commands = [
   { data: gorevlerData, execute: gorevlerExecute },
 ];
 
-module.exports = { commands };
+module.exports = { commands, gorevleriYukle };
