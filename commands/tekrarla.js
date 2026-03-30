@@ -1,33 +1,37 @@
 // commands/tekrarla.js
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const aktifGorevler = new Map();
 
-async function tekrarlaBaslat(message) {
-  const args = message.content.slice('!tekrarla'.length).trim().split(' ');
-  if (args.length < 2) {
-    return message.reply('❌ Kullanım: `!tekrarla [komut] [dakika]`\nÖrnek: `!tekrarla bump 125`');
-  }
+function isMod(member) {
+  return process.env.MODERATOR_ROL_ID
+    ? member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+    : member.permissions.has('Administrator');
+}
 
-  const komutAdi = args[0].toLowerCase().replace('/', '');
-  const sure = parseInt(args[1]);
+// ─── /tekrarla ───
+const tekrarlaData = new SlashCommandBuilder()
+  .setName('tekrarla')
+  .setDescription('Belirli aralıklarla hatırlatma mesajı gönderir [Moderatör]')
+  .addStringOption(opt => opt.setName('komut').setDescription('Hatırlatılacak komut adı (örn: bump)').setRequired(true))
+  .addIntegerOption(opt => opt.setName('dakika').setDescription('Kaç dakikada bir hatırlatılsın?').setRequired(true).setMinValue(1));
 
-  if (isNaN(sure) || sure < 1) {
-    return message.reply('❌ Geçerli bir süre gir (dakika cinsinden).');
-  }
+async function tekrarlaExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const komutAdi = interaction.options.getString('komut').toLowerCase().replace('/', '');
+  const sure = interaction.options.getInteger('dakika');
+  const kanal = interaction.channel;
 
   if (aktifGorevler.has(komutAdi)) {
     clearInterval(aktifGorevler.get(komutAdi).interval);
     aktifGorevler.delete(komutAdi);
   }
 
-  const kanal = message.channel;
-
   async function hatirlatmaGonder() {
     try {
       const modRolId = process.env.MODERATOR_ROL_ID;
       const asisRolId = process.env.ASISTAN_ROL_ID;
-
       const pingParcalar = [];
       const izinVerilen = [];
       if (modRolId) { pingParcalar.push(`<@&${modRolId}>`); izinVerilen.push(modRolId); }
@@ -41,9 +45,9 @@ async function tekrarlaBaslat(message) {
           .setDescription(`\`/${komutAdi}\` komutunu çalıştırma zamanı geldi!`)
           .addFields(
             { name: '⏱️ Tekrar Süresi', value: `${sure} dakikada bir`, inline: true },
-            { name: '▶️ Başlatan', value: `<@${message.author.id}>`, inline: true }
+            { name: '▶️ Başlatan', value: `<@${interaction.user.id}>`, inline: true }
           )
-          .setFooter({ text: 'Durdurmak için: !durdur ' + komutAdi })
+          .setFooter({ text: 'Durdurmak için: /durdur ' + komutAdi })
           .setTimestamp()],
         allowedMentions: { roles: izinVerilen }
       });
@@ -53,16 +57,10 @@ async function tekrarlaBaslat(message) {
   }
 
   await hatirlatmaGonder();
-
   const interval = setInterval(hatirlatmaGonder, sure * 60 * 1000);
+  aktifGorevler.set(komutAdi, { interval, kanal, sure, baslatan: interaction.user.id, baslangic: Math.floor(Date.now() / 1000) });
 
-  aktifGorevler.set(komutAdi, {
-    interval, kanal, sure,
-    baslatan: message.author.id,
-    baslangic: Math.floor(Date.now() / 1000)
-  });
-
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('✅ Görev Başlatıldı')
     .setColor(0x57F287)
     .addFields(
@@ -74,17 +72,22 @@ async function tekrarlaBaslat(message) {
   });
 }
 
-async function tekrarlaDurdur(message) {
-  const args = message.content.slice('!durdur'.length).trim().split(' ');
-  const komutAdi = args[0]?.toLowerCase().replace('/', '');
+// ─── /durdur ───
+const durdurData = new SlashCommandBuilder()
+  .setName('durdur')
+  .setDescription('Aktif hatırlatmayı durdurur [Moderatör]')
+  .addStringOption(opt => opt.setName('komut').setDescription('Durdurulacak komut adı').setRequired(true));
 
-  if (!komutAdi) return message.reply('❌ Kullanım: `!durdur [komut]`\nÖrnek: `!durdur bump`');
-  if (!aktifGorevler.has(komutAdi)) return message.reply(`❌ \`${komutAdi}\` için aktif görev bulunamadı.`);
+async function durdurExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const komutAdi = interaction.options.getString('komut').toLowerCase().replace('/', '');
+  if (!aktifGorevler.has(komutAdi)) return interaction.reply({ content: `❌ \`${komutAdi}\` için aktif görev bulunamadı.`, ephemeral: true });
 
   clearInterval(aktifGorevler.get(komutAdi).interval);
   aktifGorevler.delete(komutAdi);
 
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('⏹️ Görev Durduruldu')
     .setColor(0xFF0000)
     .setDescription(`\`/${komutAdi}\` hatırlatması durduruldu.`)
@@ -92,14 +95,21 @@ async function tekrarlaDurdur(message) {
   });
 }
 
-async function gorevleriListele(message) {
-  if (aktifGorevler.size === 0) return message.reply('📋 Şu an aktif görev yok.');
+// ─── /gorevler ───
+const gorevlerData = new SlashCommandBuilder()
+  .setName('gorevler')
+  .setDescription('Aktif hatırlatma görevlerini listeler [Moderatör]');
+
+async function gorevlerExecute(interaction) {
+  if (!isMod(interaction.member)) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  if (aktifGorevler.size === 0) return interaction.reply({ content: '📋 Şu an aktif görev yok.', ephemeral: true });
 
   const liste = [...aktifGorevler.entries()].map(([ad, g]) =>
     `**/${ad}** — her ${g.sure} dk — <#${g.kanal.id}> — <@${g.baslatan}> başlattı`
   ).join('\n');
 
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('📋 Aktif Görevler')
     .setColor(0x5865F2)
     .setDescription(liste)
@@ -107,4 +117,10 @@ async function gorevleriListele(message) {
   });
 }
 
-module.exports = { tekrarlaBaslat, tekrarlaDurdur, gorevleriListele };
+const commands = [
+  { data: tekrarlaData, execute: tekrarlaExecute },
+  { data: durdurData, execute: durdurExecute },
+  { data: gorevlerData, execute: gorevlerExecute },
+];
+
+module.exports = { commands };
