@@ -1,46 +1,50 @@
 // commands/uyari.js
-// !uyar @kullanıcı [sebep] — moderatöre özel
-// !uyarilar @kullanıcı — moderatöre özel
-// !uyarisil @kullanıcı [numara] — moderatöre özel
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-const { EmbedBuilder } = require('discord.js');
-
-// Bellekte uyarı verisi: Map<userId, [{sebep, moderator, tarih}]>
+// Bellekte uyarı verisi
 const uyariVerisi = new Map();
 
-async function uyarEkle(message, kayitVerisi) {
-  const hedef = message.mentions.members.first();
-  if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!uyar @kullanıcı sebep`');
-  if (hedef.user.bot) return message.reply('❌ Botlara uyarı verilemez.');
+// ─── /uyar ───
+const uyarData = new SlashCommandBuilder()
+  .setName('uyar')
+  .setDescription('Kullanıcıya uyarı verir [Yetkili]')
+  .addUserOption(opt => opt.setName('kullanici').setDescription('Uyarılacak kullanıcı').setRequired(true))
+  .addStringOption(opt => opt.setName('sebep').setDescription('Uyarı sebebi').setRequired(false));
 
-  const sebep = message.content.split(' ').slice(2).join(' ') || 'Sebep belirtilmedi';
+async function uyarExecute(interaction) {
+  const isMod = process.env.MODERATOR_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+    : interaction.member.permissions.has('Administrator');
+  const isAsis = process.env.ASISTAN_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.ASISTAN_ROL_ID)
+    : false;
 
+  if (!isMod && !isAsis) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const hedef = interaction.options.getMember('kullanici');
+  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
+  if (hedef.user.bot) return interaction.reply({ content: '❌ Botlara uyarı verilemez.', ephemeral: true });
+
+  const sebep = interaction.options.getString('sebep') || 'Sebep belirtilmedi';
   const mevcutUyarilar = uyariVerisi.get(hedef.id) || [];
-  mevcutUyarilar.push({
-    sebep,
-    moderator: message.author.id,
-    tarih: Math.floor(Date.now() / 1000)
-  });
+  mevcutUyarilar.push({ sebep, moderator: interaction.user.id, tarih: Math.floor(Date.now() / 1000) });
   uyariVerisi.set(hedef.id, mevcutUyarilar);
-
   const toplamUyari = mevcutUyarilar.length;
 
-  // Kullanıcıya DM
   await hedef.send({ embeds: [new EmbedBuilder()
     .setTitle('⚠️ Uyarı Aldın!')
     .setColor(0xFFA500)
-    .setDescription(`**Mobile Legends 🇹🇷 #TURNUVA** sunucusunda uyarı aldın.`)
+    .setDescription('**Mobile Legends 🇹🇷 #TURNUVA** sunucusunda uyarı aldın.')
     .addFields(
       { name: '📋 Sebep', value: sebep, inline: false },
-      { name: '🛡️ Yetkili', value: `<@${message.author.id}>`, inline: true },
+      { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: true },
       { name: '⚠️ Toplam Uyarın', value: `${toplamUyari}`, inline: true }
     )
     .setFooter({ text: 'Kurallara uymaya devam et!' })
     .setTimestamp()]
   }).catch(() => {});
 
-  // Log kanalına gönder
-  const logKanal = message.guild.channels.cache.get(process.env.LOG_KANAL_ID);
+  const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
   if (logKanal) {
     const logEmbed = new EmbedBuilder()
       .setTitle('⚠️ Kullanıcı Uyarıldı')
@@ -48,21 +52,17 @@ async function uyarEkle(message, kayitVerisi) {
       .addFields(
         { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
         { name: '📋 Sebep', value: sebep, inline: false },
-        { name: '🛡️ Yetkili', value: `<@${message.author.id}>`, inline: true },
+        { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: true },
         { name: '⚠️ Toplam Uyarı', value: `${toplamUyari}`, inline: true },
         { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
       )
       .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })
       .setTimestamp();
-
-    if (toplamUyari >= 3) {
-      logEmbed.setDescription('🚨 **Bu kullanıcı 3 veya daha fazla uyarıya ulaştı! İncelemeniz gerekebilir.**');
-    }
-
+    if (toplamUyari >= 3) logEmbed.setDescription('🚨 **Bu kullanıcı 3 veya daha fazla uyarıya ulaştı!**');
     await logKanal.send({ embeds: [logEmbed] });
   }
 
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('✅ Uyarı Verildi')
     .setColor(0xFFA500)
     .addFields(
@@ -74,13 +74,28 @@ async function uyarEkle(message, kayitVerisi) {
   });
 }
 
-async function uyarilariGoster(message) {
-  const hedef = message.mentions.members.first();
-  if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!uyarilar @kullanıcı`');
+// ─── /uyarilar ───
+const uyarilarData = new SlashCommandBuilder()
+  .setName('uyarilar')
+  .setDescription('Kullanıcının uyarı geçmişini gösterir [Yetkili]')
+  .addUserOption(opt => opt.setName('kullanici').setDescription('Kullanıcı').setRequired(true));
+
+async function uyarilarExecute(interaction) {
+  const isMod = process.env.MODERATOR_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+    : interaction.member.permissions.has('Administrator');
+  const isAsis = process.env.ASISTAN_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.ASISTAN_ROL_ID)
+    : false;
+
+  if (!isMod && !isAsis) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const hedef = interaction.options.getMember('kullanici');
+  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
 
   const uyarilar = uyariVerisi.get(hedef.id);
   if (!uyarilar || uyarilar.length === 0) {
-    return message.reply({ embeds: [new EmbedBuilder()
+    return interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
       .setTitle('✅ Temiz Sicil')
       .setColor(0x57F287)
       .setDescription(`<@${hedef.id}> kullanıcısının hiç uyarısı yok.`)]
@@ -91,7 +106,7 @@ async function uyarilariGoster(message) {
     `**${i + 1}.** ${u.sebep} — <t:${u.tarih}:d> — <@${u.moderator}>`
   ).join('\n');
 
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle(`⚠️ Uyarı Geçmişi — ${hedef.user.tag}`)
     .setColor(uyarilar.length >= 3 ? 0xFF0000 : 0xFFA500)
     .setDescription(uyariListesi)
@@ -101,26 +116,36 @@ async function uyarilariGoster(message) {
   });
 }
 
-async function uyariSil(message) {
-  const hedef = message.mentions.members.first();
-  if (!hedef) return message.reply('❌ Bir kullanıcı etiketle. Örnek: `!uyarisil @kullanıcı 1`');
+// ─── /uyarisil ───
+const uyarisilData = new SlashCommandBuilder()
+  .setName('uyarisil')
+  .setDescription('Kullanıcının belirtilen uyarısını siler [Yetkili]')
+  .addUserOption(opt => opt.setName('kullanici').setDescription('Kullanıcı').setRequired(true))
+  .addIntegerOption(opt => opt.setName('numara').setDescription('Uyarı numarası').setRequired(true).setMinValue(1));
 
-  const args = message.content.split(' ');
-  const numara = parseInt(args[args.length - 1]);
+async function uyarisilExecute(interaction) {
+  const isMod = process.env.MODERATOR_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+    : interaction.member.permissions.has('Administrator');
+  const isAsis = process.env.ASISTAN_ROL_ID
+    ? interaction.member.roles.cache.has(process.env.ASISTAN_ROL_ID)
+    : false;
 
+  if (!isMod && !isAsis) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+
+  const hedef = interaction.options.getMember('kullanici');
+  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
+
+  const numara = interaction.options.getInteger('numara');
   const uyarilar = uyariVerisi.get(hedef.id);
-  if (!uyarilar || uyarilar.length === 0) {
-    return message.reply('❌ Bu kullanıcının uyarısı yok.');
-  }
 
-  if (isNaN(numara) || numara < 1 || numara > uyarilar.length) {
-    return message.reply(`❌ Geçerli bir numara gir. (1 - ${uyarilar.length})`);
-  }
+  if (!uyarilar || uyarilar.length === 0) return interaction.reply({ content: '❌ Bu kullanıcının uyarısı yok.', ephemeral: true });
+  if (numara > uyarilar.length) return interaction.reply({ content: `❌ Geçerli bir numara gir. (1 - ${uyarilar.length})`, ephemeral: true });
 
   const silinenUyari = uyarilar.splice(numara - 1, 1)[0];
   uyariVerisi.set(hedef.id, uyarilar);
 
-  await message.reply({ embeds: [new EmbedBuilder()
+  await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('🗑️ Uyarı Silindi')
     .setColor(0x57F287)
     .addFields(
@@ -132,4 +157,10 @@ async function uyariSil(message) {
   });
 }
 
-module.exports = { uyarEkle, uyarilariGoster, uyariSil };
+const commands = [
+  { data: uyarData, execute: uyarExecute },
+  { data: uyarilarData, execute: uyarilarExecute },
+  { data: uyarisilData, execute: uyarisilExecute },
+];
+
+module.exports = { commands };
