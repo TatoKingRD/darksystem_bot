@@ -16,6 +16,8 @@ client.commands = new Collection();
 const commandModules = [
   require('./commands/takim'),
   require('./commands/yardim'),
+  require('./commands/profil'),
+  require('./commands/rankguncelle'),
   ...require('./commands/uyari').commands,
   ...require('./commands/rol').commands,
   ...require('./commands/tekrarla').commands,
