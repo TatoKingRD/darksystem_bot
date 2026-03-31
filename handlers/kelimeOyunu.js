@@ -41,13 +41,13 @@ module.exports = async function kelimeOyunu(message) {
     oyunDurumu.sonOyuncu = message.author.id;
     oyunDurumu.kullanilanKelimeler.clear();
     oyunDurumu.kullanilanKelimeler.add(kelimeNorm);
-    await message.react('<a:tik:1488538016984207544>');
+    await message.react('ponpon:1488538016984207544');
     return;
   }
 
   // Ardışık oynama engeli
   if (message.author.id === oyunDurumu.sonOyuncu) {
-    await message.react('<a:carpi:1488538135653646357>');
+    await message.react('mlturkey_alarm:1488538135653646357');
     const m1 = await message.reply(`⛔ Ardışık oynayamazsın! Başka biri oynamalı.`);
     setTimeout(() => { m1.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
     return;
@@ -55,7 +55,7 @@ module.exports = async function kelimeOyunu(message) {
 
   // Aynı kelime tekrarı
   if (oyunDurumu.kullanilanKelimeler.has(kelimeNorm)) {
-    await message.react('<a:carpi:1488538135653646357>');
+    await message.react('mlturkey_alarm:1488538135653646357');
     const m2 = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
     setTimeout(() => { m2.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
     return;
@@ -64,7 +64,7 @@ module.exports = async function kelimeOyunu(message) {
   // Yanlış harf kontrolü
   const beklenenHarf = sonHarf(oyunDurumu.sonKelime);
   if (ilkHarf(kelimeNorm) !== beklenenHarf) {
-    await message.react('<a:carpi:1488538135653646357>');
+    await message.react('mlturkey_alarm:1488538135653646357');
     const m3 = await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
     setTimeout(() => { m3.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
     return;
@@ -74,5 +74,5 @@ module.exports = async function kelimeOyunu(message) {
   oyunDurumu.kullanilanKelimeler.add(kelimeNorm);
   oyunDurumu.sonKelime = kelimeNorm;
   oyunDurumu.sonOyuncu = message.author.id;
-  await message.react('<a:tik:1488538016984207544>');
+  await message.react('ponpon:1488538016984207544');
 };
