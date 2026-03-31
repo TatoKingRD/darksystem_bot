@@ -48,14 +48,16 @@ module.exports = async function kelimeOyunu(message) {
   // Ardışık oynama engeli
   if (message.author.id === oyunDurumu.sonOyuncu) {
     await message.react('❌');
-    await message.reply(`⛔ Ardışık oynayamazsın! Başka biri oynamalı.`);
+    const m1 = await message.reply(`⛔ Ardışık oynayamazsın! Başka biri oynamalı.`);
+    setTimeout(() => m1.delete().catch(() => {}), 5000);
     return;
   }
 
   // Aynı kelime tekrarı
   if (oyunDurumu.kullanilanKelimeler.has(kelimeNorm)) {
     await message.react('❌');
-    await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
+    const m2 = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
+    setTimeout(() => m2.delete().catch(() => {}), 5000);
     return;
   }
 
@@ -63,7 +65,8 @@ module.exports = async function kelimeOyunu(message) {
   const beklenenHarf = sonHarf(oyunDurumu.sonKelime);
   if (ilkHarf(kelimeNorm) !== beklenenHarf) {
     await message.react('❌');
-    await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
+    const m3 = await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
+    setTimeout(() => m3.delete().catch(() => {}), 5000);
     return;
   }
 
