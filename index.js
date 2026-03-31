@@ -35,6 +35,10 @@ for (const cmd of commandModules) {
 const interactionHandler = require('./handlers/interactionHandler');
 client.on('interactionCreate', (interaction) => interactionHandler(client, interaction));
 
+// Kelime oyunu handler
+const kelimeOyunu = require('./handlers/kelimeOyunu');
+client.on('messageCreate', (message) => kelimeOyunu(message));
+
 // Yeni üye
 const hosgeldinGonder = require('./commands/hosgeldin');
 const dmHatirlatmaBaslat = require('./commands/dmHatirlatma');
