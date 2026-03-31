@@ -34,6 +34,8 @@ async function execute(interaction) {
         { name: '⏹️ /durdur komut', value: 'Hatırlatmayı durdurur.', inline: false },
         { name: '📋 /gorevler', value: 'Aktif hatırlatmaları listeler.', inline: false },
         { name: '🎮 /takim', value: 'Takım ilanı oluşturur. Rank: Epik → Yüce Mistik. Rol: Mid, Gold Koridor, EXP Koridor, Jungler, Roam. Max 4 aranan rol seçilebilir.', inline: false },
+        { name: '👤 /profil', value: 'Kendi kayıt bilgilerini gösterir.', inline: false },
+        { name: '🏅 /rankguncelle', value: 'Kendi rankını günceller.', inline: false },
         { name: '❓ /yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Moderatör Paneli' })
@@ -53,6 +55,8 @@ async function execute(interaction) {
         { name: '📋 /uyarilar @kullanıcı', value: 'Uyarı geçmişini gösterir.', inline: false },
         { name: '🗑️ /uyarisil @kullanıcı numara', value: 'Belirtilen uyarıyı siler.', inline: false },
         { name: '🎮 /takim', value: 'Takım ilanı oluşturur. Rank: Epik → Yüce Mistik. Rol: Mid, Gold Koridor, EXP Koridor, Jungler, Roam. Max 4 aranan rol seçilebilir.', inline: false },
+        { name: '👤 /profil', value: 'Kendi kayıt bilgilerini gösterir.', inline: false },
+        { name: '🏅 /rankguncelle', value: 'Kendi rankını günceller.', inline: false },
         { name: '❓ /yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Asistan Paneli' })
