@@ -3,6 +3,8 @@
 
 const https = require('https');
 
+let isleniyor = false;
+
 const oyunDurumu = {
   sonKelime: null,
   sonOyuncu: null,
@@ -54,6 +56,10 @@ module.exports = async function kelimeOyunu(message) {
   if (message.author.bot) return;
   if (message.channel.id !== process.env.KELIME_KANAL_ID) return;
 
+  // Eş zamanlı mesajları engelle
+  if (isleniyor) return;
+  isleniyor = true;
+
   const kelime = message.content.trim();
   if (kelime.includes(' ') || kelime.length < 2) return;
 
@@ -73,6 +79,7 @@ module.exports = async function kelimeOyunu(message) {
     oyunDurumu.kullanilanKelimeler.clear();
     oyunDurumu.kullanilanKelimeler.add(kelimeNorm);
     await message.react('✅');
+    isleniyor = false;
     return;
   }
 
@@ -81,6 +88,7 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ Ardışık oynayamazsın! Başka biri oynamalı.`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+    isleniyor = false;
     return;
   }
 
@@ -89,6 +97,7 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+    isleniyor = false;
     return;
   }
 
@@ -98,6 +107,7 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+    isleniyor = false;
     return;
   }
 
@@ -107,6 +117,7 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ **"${kelime}"** TDK sözlüğünde bulunamadı!`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+    isleniyor = false;
     return;
   }
 
@@ -115,4 +126,5 @@ module.exports = async function kelimeOyunu(message) {
   oyunDurumu.sonKelime = kelimeNorm;
   oyunDurumu.sonOyuncu = message.author.id;
   await message.react('✅');
+  isleniyor = false;
 };
