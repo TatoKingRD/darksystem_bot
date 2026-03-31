@@ -53,6 +53,7 @@ function tdkKontrol(kelime) {
 }
 
 module.exports = async function kelimeOyunu(message) {
+  try {
   if (message.author.bot) return;
   if (message.channel.id !== process.env.KELIME_KANAL_ID) return;
 
@@ -61,7 +62,15 @@ module.exports = async function kelimeOyunu(message) {
   isleniyor = true;
 
   const kelime = message.content.trim();
-  if (kelime.includes(' ') || kelime.length < 2) return;
+  // Boşluk, çok kısa veya çok uzun mesajları sil
+  if (kelime.includes(' ') || kelime.length < 2) {
+    message.delete().catch(() => {});
+    return;
+  }
+  if (kelime.length > 30) {
+    message.delete().catch(() => {});
+    return;
+  }
 
   const kelimeNorm = normalize(kelime);
 
@@ -79,7 +88,6 @@ module.exports = async function kelimeOyunu(message) {
     oyunDurumu.kullanilanKelimeler.clear();
     oyunDurumu.kullanilanKelimeler.add(kelimeNorm);
     await message.react('✅');
-    isleniyor = false;
     return;
   }
 
@@ -88,7 +96,6 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ Ardışık oynayamazsın! Başka biri oynamalı.`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
-    isleniyor = false;
     return;
   }
 
@@ -97,7 +104,6 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
-    isleniyor = false;
     return;
   }
 
@@ -107,7 +113,6 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
-    isleniyor = false;
     return;
   }
 
@@ -117,7 +122,6 @@ module.exports = async function kelimeOyunu(message) {
     await message.react('❌');
     const m = await message.reply(`⛔ **"${kelime}"** TDK sözlüğünde bulunamadı!`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
-    isleniyor = false;
     return;
   }
 
@@ -126,5 +130,9 @@ module.exports = async function kelimeOyunu(message) {
   oyunDurumu.sonKelime = kelimeNorm;
   oyunDurumu.sonOyuncu = message.author.id;
   await message.react('✅');
-  isleniyor = false;
+  } catch (err) {
+    console.error('Kelime oyunu hatası:', err);
+  } finally {
+    isleniyor = false;
+  }
 };
