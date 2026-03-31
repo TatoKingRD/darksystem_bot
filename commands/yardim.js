@@ -38,6 +38,8 @@ async function execute(interaction) {
         { name: '🎮 /takim', value: 'Takım ilanı oluşturur. Rank: Epik → Yüce Mistik. Rol: Mid, Gold Koridor, EXP Koridor, Jungler, Roam. Max 4 aranan rol seçilebilir.', inline: false },
         { name: '👤 /profil', value: 'Kendi kayıt bilgilerini gösterir.', inline: false },
         { name: '🏅 /rankguncelle', value: 'Kendi rankını günceller.', inline: false },
+        { name: '🎲 /hero', value: 'Rastgele MLBB hero önerir.', inline: false },
+        { name: '⚔️ /duello @kullanıcı', value: 'Düello meydan oku.', inline: false },
         { name: '❓ /yardim', value: 'Bu menüyü gösterir.', inline: false }
       )
       .setFooter({ text: 'MLBB TR • Moderatör Paneli' })
@@ -72,6 +74,8 @@ async function execute(interaction) {
       .setColor(0x5865F2)
       .setDescription('Merhaba! Sunucuda kullanabileceğin komutlar:')
       .addFields(
+        { name: '🎲 /hero', value: 'Rastgele MLBB hero önerir. Rol seçebilirsin.', inline: false },
+        { name: '⚔️ /duello @kullanıcı', value: 'Birine düello meydan oku, rastgele kazanan belirlenir.', inline: false },
         { name: '🎮 /takim', value: 'Takım arkadaşı bulmak için ilan oluşturur.\nRank: Epik → Yüce Mistik\nRol: Mid, Gold Koridor, EXP Koridor, Jungler, Roam\nMax 4 aranan rol seçilebilir.', inline: false },
         { name: '👤 /profil', value: 'Kendi kayıt bilgilerini gösterir.', inline: false },
         { name: '🏅 /rankguncelle', value: 'Kendi rankını günceller.', inline: false },
