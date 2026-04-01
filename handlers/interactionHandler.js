@@ -44,11 +44,11 @@ module.exports = async function interactionHandler(client, interaction) {
     }
 
     const fields = embed.fields;
-    const evetField = fields.find(f => f.name === '✅ Evet');
-    const hayirField = fields.find(f => f.name === '❌ Hayır');
+    const aField = fields[0];
+    const bField = fields[1];
 
-    let evetOy = parseInt(evetField?.value) || 0;
-    let hayirOy = parseInt(hayirField?.value) || 0;
+    let aOy = parseInt(aField?.value) || 0;
+    let bOy = parseInt(bField?.value) || 0;
 
     const oyVerenler = embed.image?.url?.replace('https://oyverenler.placeholder/', '')?.split(',').filter(Boolean) || [];
 
@@ -56,22 +56,23 @@ module.exports = async function interactionHandler(client, interaction) {
       return interaction.reply({ content: '❌ Zaten oy verdin!', ephemeral: true });
     }
 
-    if (interaction.customId === 'anket_evet') evetOy++;
-    if (interaction.customId === 'anket_hayir') hayirOy++;
+    if (interaction.customId === 'anket_a') aOy++;
+    if (interaction.customId === 'anket_b') bOy++;
 
     oyVerenler.push(interaction.user.id);
-    const toplamOy = evetOy + hayirOy;
-    const evetYuzde = toplamOy > 0 ? Math.round((evetOy / toplamOy) * 100) : 0;
-    const hayirYuzde = toplamOy > 0 ? Math.round((hayirOy / toplamOy) * 100) : 0;
+    const toplamOy = aOy + bOy;
+    const aYuzde = toplamOy > 0 ? Math.round((aOy / toplamOy) * 100) : 0;
+    const bYuzde = toplamOy > 0 ? Math.round((bOy / toplamOy) * 100) : 0;
 
     const aciklama = embed.description || null;
+    const secilen = interaction.customId === 'anket_a' ? aField?.name : bField?.name;
 
     const yeniEmbed = new EmbedBuilder()
       .setTitle(embed.title)
       .setColor(0x5865F2)
       .addFields(
-        { name: '✅ Evet', value: `${evetOy} oy (${evetYuzde}%)`, inline: true },
-        { name: '❌ Hayır', value: `${hayirOy} oy (${hayirYuzde}%)`, inline: true },
+        { name: aField.name, value: `${aOy} oy (${aYuzde}%)`, inline: true },
+        { name: bField.name, value: `${bOy} oy (${bYuzde}%)`, inline: true },
       )
       .setImage('https://oyverenler.placeholder/' + oyVerenler.join(','))
       .setFooter({ text: embed.footer.text })
@@ -79,7 +80,7 @@ module.exports = async function interactionHandler(client, interaction) {
 
     if (aciklama) yeniEmbed.setDescription(aciklama);
     await msg.edit({ embeds: [yeniEmbed] });
-    return interaction.reply({ content: `✅ Oyun kaydedildi! (${interaction.customId === 'anket_evet' ? 'Evet' : 'Hayır'})`, ephemeral: true });
+    return interaction.reply({ content: `✅ Oyun kaydedildi! (${secilen?.replace(/🅰️ |🅱️ /, '')})`, ephemeral: true });
   }
 
   // ─── KAYIT BAŞLAT BUTONU ───
