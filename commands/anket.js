@@ -54,4 +54,61 @@ async function execute(interaction) {
   });
 }
 
-module.exports = { data, execute };
+
+// ─── /anketoylar ───
+const anketOylarData = new SlashCommandBuilder()
+  .setName('anketoylar')
+  .setDescription('Anket oy verenlerini gösterir [Moderatör]')
+  .addStringOption(opt => opt.setName('mesaj_id').setDescription('Anket mesajının ID'si').setRequired(true));
+
+async function anketOylarExecute(interaction) {
+  if (!isMod(interaction.member)) {
+    return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const mesajId = interaction.options.getString('mesaj_id');
+  
+  // Kanalda mesajı bul
+  let bulunanMesaj = null;
+  for (const [, kanal] of interaction.guild.channels.cache) {
+    if (!kanal.isTextBased()) continue;
+    try {
+      bulunanMesaj = await kanal.messages.fetch(mesajId);
+      if (bulunanMesaj) break;
+    } catch {}
+  }
+
+  if (!bulunanMesaj) return interaction.editReply({ content: '❌ Mesaj bulunamadı.' });
+
+  const embed = bulunanMesaj.embeds[0];
+  if (!embed || !embed.title?.startsWith('📊') && !embed.title?.startsWith('🔒')) {
+    return interaction.editReply({ content: '❌ Bu bir anket mesajı değil.' });
+  }
+
+  const oyVerenler = bulunanMesaj.embeds[0].image?.url
+    ?.replace('https://oyverenler.placeholder/', '')
+    ?.split(',').filter(Boolean) || [];
+
+  if (oyVerenler.length === 0) {
+    return interaction.editReply({ content: '📊 Bu ankete henüz oy veren yok.' });
+  }
+
+  const liste = oyVerenler.map(id => `<@${id}>`).join('\n');
+
+  await interaction.editReply({ embeds: [new EmbedBuilder()
+    .setTitle('📊 Oy Verenler')
+    .setColor(0x5865F2)
+    .setDescription(liste)
+    .addFields({ name: 'Toplam', value: `${oyVerenler.length} kişi`, inline: true })
+    .setFooter({ text: 'Anket ID: ' + mesajId })
+    .setTimestamp()]
+  });
+}
+
+const { SlashCommandBuilder: _SB } = require('discord.js');
+module.exports = [
+  { data, execute },
+  { data: anketOylarData, execute: anketOylarExecute }
+];
