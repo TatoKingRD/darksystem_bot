@@ -1,14 +1,11 @@
 // handlers/kelimeOyunu.js
-// Kelime zinciri oyunu — sadece KELIME_KANAL_ID kanalında çalışır
-
 const https = require('https');
-
-let isleniyor = false;
 
 const oyunDurumu = {
   sonKelime: null,
   sonOyuncu: null,
   kullanilanKelimeler: new Set(),
+  islemKuyrugu: Promise.resolve(),
 };
 
 function normalize(str) {
@@ -20,61 +17,46 @@ function normalize(str) {
     .trim();
 }
 
-function sonHarf(kelime) {
-  return normalize(kelime).slice(-1);
-}
-
-function ilkHarf(kelime) {
-  return normalize(kelime)[0];
-}
-
-// TDK API'den kelimeyi kontrol et
 function tdkKontrol(kelime) {
   return new Promise((resolve) => {
     const url = `https://sozluk.gov.tr/gts?ara=${encodeURIComponent(kelime)}`;
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 5000 }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          // TDK hata döndürüyorsa veya boş array ise kelime yok
-          if (Array.isArray(json) && json.length > 0 && json[0].madde) {
-            resolve(true);
-          } else {
-            resolve(false);
-          }
+          resolve(Array.isArray(json) && json.length > 0 && !!json[0].madde);
         } catch {
           resolve(false);
         }
       });
-    }).on('error', () => resolve(false));
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
   });
 }
 
-module.exports = async function kelimeOyunu(message) {
-  try {
+async function isleMesaj(message) {
   if (message.author.bot) return;
   if (message.channel.id !== process.env.KELIME_KANAL_ID) return;
 
-  // Eş zamanlı mesajları engelle
-  if (isleniyor) return;
-  isleniyor = true;
-
   const kelime = message.content.trim();
-  // Boşluk, çok kısa veya çok uzun mesajları sil
-  if (kelime.includes(' ') || kelime.length < 2) {
-    message.delete().catch(() => {});
+
+  // Boşluk içeren veya çok uzun mesajları sil
+  if (kelime.includes(' ') || kelime.length > 30) {
+    await message.delete().catch(() => {});
     return;
   }
-  if (kelime.length > 30) {
-    message.delete().catch(() => {});
+
+  if (kelime.length < 2) {
+    await message.delete().catch(() => {});
     return;
   }
 
   const kelimeNorm = normalize(kelime);
 
-  // İlk kelime — oyun henüz başlamamış
+  // İlk kelime
   if (!oyunDurumu.sonKelime) {
     const gecerli = await tdkKontrol(kelimeNorm);
     if (!gecerli) {
@@ -102,21 +84,21 @@ module.exports = async function kelimeOyunu(message) {
   // Aynı kelime tekrarı
   if (oyunDurumu.kullanilanKelimeler.has(kelimeNorm)) {
     await message.react('❌');
-    const m = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı! Başka bir kelime söyle.`);
+    const m = await message.reply(`⛔ **"${kelime}"** daha önce kullanıldı!`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
     return;
   }
 
-  // Yanlış harf kontrolü
-  const beklenenHarf = sonHarf(oyunDurumu.sonKelime);
-  if (ilkHarf(kelimeNorm) !== beklenenHarf) {
+  // Yanlış harf
+  const beklenenHarf = oyunDurumu.sonKelime.slice(-1);
+  if (kelimeNorm[0] !== beklenenHarf) {
     await message.react('❌');
     const m = await message.reply(`⛔ Kelime **"${beklenenHarf.toUpperCase()}"** harfiyle başlamalı! (Son kelime: **${oyunDurumu.sonKelime}**)`);
     setTimeout(() => { m.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
     return;
   }
 
-  // TDK kelime doğrulama
+  // TDK kontrolü
   const gecerli = await tdkKontrol(kelimeNorm);
   if (!gecerli) {
     await message.react('❌');
@@ -125,14 +107,16 @@ module.exports = async function kelimeOyunu(message) {
     return;
   }
 
-  // Doğru kelime ✅
+  // Doğru ✅
   oyunDurumu.kullanilanKelimeler.add(kelimeNorm);
   oyunDurumu.sonKelime = kelimeNorm;
   oyunDurumu.sonOyuncu = message.author.id;
   await message.react('✅');
-  } catch (err) {
-    console.error('Kelime oyunu hatası:', err);
-  } finally {
-    isleniyor = false;
-  }
+}
+
+module.exports = function kelimeOyunu(message) {
+  // Kuyruk sistemi — mesajları sırayla işle
+  oyunDurumu.islemKuyrugu = oyunDurumu.islemKuyrugu
+    .then(() => isleMesaj(message))
+    .catch(err => console.error('Kelime oyunu hatası:', err));
 };
