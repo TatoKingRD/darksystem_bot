@@ -29,6 +29,7 @@ async function execute(interaction) {
       { name: '✅ Evet', value: '0 oy', inline: true },
       { name: '❌ Hayır', value: '0 oy', inline: true },
     )
+    .setImage('https://oyverenler.placeholder/')
     .setFooter({ text: `Anketi oluşturan: ${interaction.user.tag}` })
     .setTimestamp();
 
