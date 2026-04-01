@@ -7,7 +7,8 @@ function isMod(member) {
     : member.permissions.has('Administrator');
 }
 
-const data = new SlashCommandBuilder()
+// ─── /anket ───
+const anketData = new SlashCommandBuilder()
   .setName('anket')
   .setDescription('Anket oluşturur [Moderatör]')
   .addStringOption(opt => opt.setName('soru').setDescription('Anket sorusu').setRequired(true))
@@ -16,7 +17,7 @@ const data = new SlashCommandBuilder()
   .addStringOption(opt => opt.setName('secenek2').setDescription('2. seçenek (boş bırakırsan: Hayır)').setRequired(false))
   .addBooleanOption(opt => opt.setName('ping').setDescription('@everyone ping at (varsayılan: hayır)').setRequired(false));
 
-async function execute(interaction) {
+async function anketExecute(interaction) {
   if (!isMod(interaction.member)) {
     return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
   }
@@ -54,12 +55,11 @@ async function execute(interaction) {
   });
 }
 
-
 // ─── /anketoylar ───
 const anketOylarData = new SlashCommandBuilder()
   .setName('anketoylar')
-  .setDescription('Anket oy verenlerini gösterir [Moderatör]')
-  .addStringOption(opt => opt.setName('mesaj_id').setDescription('Anket mesajının ID'si').setRequired(true));
+  .setDescription('Ankete oy verenleri gösterir [Moderatör]')
+  .addStringOption(opt => opt.setName('mesaj_id').setDescription('Anket mesajının ID\'si').setRequired(true));
 
 async function anketOylarExecute(interaction) {
   if (!isMod(interaction.member)) {
@@ -69,8 +69,7 @@ async function anketOylarExecute(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const mesajId = interaction.options.getString('mesaj_id');
-  
-  // Kanalda mesajı bul
+
   let bulunanMesaj = null;
   for (const [, kanal] of interaction.guild.channels.cache) {
     if (!kanal.isTextBased()) continue;
@@ -83,11 +82,9 @@ async function anketOylarExecute(interaction) {
   if (!bulunanMesaj) return interaction.editReply({ content: '❌ Mesaj bulunamadı.' });
 
   const embed = bulunanMesaj.embeds[0];
-  if (!embed || !embed.title?.startsWith('📊') && !embed.title?.startsWith('🔒')) {
-    return interaction.editReply({ content: '❌ Bu bir anket mesajı değil.' });
-  }
+  if (!embed) return interaction.editReply({ content: '❌ Bu bir anket mesajı değil.' });
 
-  const oyVerenler = bulunanMesaj.embeds[0].image?.url
+  const oyVerenler = embed.image?.url
     ?.replace('https://oyverenler.placeholder/', '')
     ?.split(',').filter(Boolean) || [];
 
@@ -107,8 +104,7 @@ async function anketOylarExecute(interaction) {
   });
 }
 
-const { SlashCommandBuilder: _SB } = require('discord.js');
 module.exports = [
-  { data, execute },
-  { data: anketOylarData, execute: anketOylarExecute }
+  { data: anketData, execute: anketExecute },
+  { data: anketOylarData, execute: anketOylarExecute },
 ];
