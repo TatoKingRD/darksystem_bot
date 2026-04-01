@@ -21,7 +21,8 @@ async function execute(interaction) {
       .setDescription('Aşağıdaki komutlar sadece moderatörler tarafından kullanılabilir.')
       .addFields(
         { name: '📋 /panel', value: 'Kayıt panelini kanala gönderir.', inline: false },
-        { name: '📊 /anket soru', value: 'Evet/Hayır anketi oluşturur.', inline: false },
+        { name: '📊 /anket soru', value: 'Anket oluşturur. Boş bırakırsan Evet/Hayır, özel seçenek yazabilirsin.', inline: false },
+        { name: '🗳️ /anketoylar mesaj_id', value: 'Ankete oy verenleri gösterir.', inline: false },
         { name: '🗑️ /kayitsil @kullanıcı', value: 'Üyenin kaydını sıfırlar.', inline: false },
         { name: '🔍 /kayitbilgi @kullanıcı', value: 'Kayıt bilgilerini gösterir.', inline: false },
         { name: '✏️ /kayitguncelle @kullanıcı', value: 'Kayıt bilgilerini günceller.', inline: false },
