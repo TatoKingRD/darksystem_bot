@@ -40,6 +40,8 @@ async function execute(interaction) {
         { name: '🎮 /takim', value: 'Takım ilanı oluşturur. Rank: Epik → Yüce Mistik. Rol: Mid, Gold Koridor, EXP Koridor, Jungler, Roam. Max 4 aranan rol seçilebilir.', inline: false },
         { name: '👤 /profil', value: 'Kendi kayıt bilgilerini gösterir.', inline: false },
         { name: '📅 /kacgun', value: 'Sunucuya katılalı kaç gün olduğunu gösterir.', inline: false },
+        { name: '🏆 /topkacgun', value: 'En uzun süreli üyelerin sıralaması. Kullanıcı etiketleyince onun sırasını gösterir.', inline: false },
+        { name: '🏆 /topkacgun', value: 'En uzun süredir sunucuda olan üyeleri listeler. Sayı belirtebilirsin.', inline: false },
         { name: '🏅 /rankguncelle', value: 'Kendi rankını günceller.', inline: false },
         { name: '🎲 /hero', value: 'Rastgele MLBB hero önerir.', inline: false },
         { name: '⚔️ /duello @kullanıcı', value: 'Düello meydan oku.', inline: false },
