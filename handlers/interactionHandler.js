@@ -50,7 +50,7 @@ module.exports = async function interactionHandler(client, interaction) {
     let evetOy = parseInt(evetField?.value) || 0;
     let hayirOy = parseInt(hayirField?.value) || 0;
 
-    const oyVerenler = embed.description?.match(/OYVERENLER:(.*)/)?.[1]?.split(',').filter(Boolean) || [];
+    const oyVerenler = embed.image?.url?.replace('https://oyverenler.placeholder/', '')?.split(',').filter(Boolean) || [];
 
     if (oyVerenler.includes(interaction.user.id)) {
       return interaction.reply({ content: '❌ Zaten oy verdin!', ephemeral: true });
@@ -64,7 +64,7 @@ module.exports = async function interactionHandler(client, interaction) {
     const evetYuzde = toplamOy > 0 ? Math.round((evetOy / toplamOy) * 100) : 0;
     const hayirYuzde = toplamOy > 0 ? Math.round((hayirOy / toplamOy) * 100) : 0;
 
-    const aciklama = embed.description?.replace(/\nOYVERENLER:.*/s, '').replace(/OYVERENLER:.*/s, '') || null;
+    const aciklama = embed.description || null;
 
     const yeniEmbed = new EmbedBuilder()
       .setTitle(embed.title)
@@ -73,10 +73,11 @@ module.exports = async function interactionHandler(client, interaction) {
         { name: '✅ Evet', value: `${evetOy} oy (${evetYuzde}%)`, inline: true },
         { name: '❌ Hayır', value: `${hayirOy} oy (${hayirYuzde}%)`, inline: true },
       )
-      .setDescription((aciklama ? aciklama + '\n' : '') + 'OYVERENLER:' + oyVerenler.join(','))
+      .setImage('https://oyverenler.placeholder/' + oyVerenler.join(','))
       .setFooter({ text: embed.footer.text })
       .setTimestamp(embed.timestamp ? new Date(embed.timestamp) : null);
 
+    if (aciklama) yeniEmbed.setDescription(aciklama);
     await msg.edit({ embeds: [yeniEmbed] });
     return interaction.reply({ content: `✅ Oyun kaydedildi! (${interaction.customId === 'anket_evet' ? 'Evet' : 'Hayır'})`, ephemeral: true });
   }
