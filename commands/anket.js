@@ -13,7 +13,8 @@ const data = new SlashCommandBuilder()
   .addStringOption(opt => opt.setName('soru').setDescription('Anket sorusu').setRequired(true))
   .addStringOption(opt => opt.setName('aciklama').setDescription('Ek açıklama (opsiyonel)').setRequired(false))
   .addStringOption(opt => opt.setName('secenek1').setDescription('1. seçenek (boş bırakırsan: Evet)').setRequired(false))
-  .addStringOption(opt => opt.setName('secenek2').setDescription('2. seçenek (boş bırakırsan: Hayır)').setRequired(false));
+  .addStringOption(opt => opt.setName('secenek2').setDescription('2. seçenek (boş bırakırsan: Hayır)').setRequired(false))
+  .addBooleanOption(opt => opt.setName('ping').setDescription('@everyone ping at (varsayılan: hayır)').setRequired(false));
 
 async function execute(interaction) {
   if (!isMod(interaction.member)) {
@@ -24,6 +25,7 @@ async function execute(interaction) {
   const aciklama = interaction.options.getString('aciklama');
   const sec1 = interaction.options.getString('secenek1') || 'Evet';
   const sec2 = interaction.options.getString('secenek2') || 'Hayır';
+  const ping = interaction.options.getBoolean('ping') || false;
 
   const embed = new EmbedBuilder()
     .setTitle('📊 ' + soru)
@@ -44,7 +46,12 @@ async function execute(interaction) {
     new ButtonBuilder().setCustomId('anket_kapat').setLabel('🔒 Anketi Kapat').setStyle(ButtonStyle.Secondary),
   );
 
-  await interaction.reply({ embeds: [embed], components: [row] });
+  await interaction.reply({
+    content: ping ? '@everyone' : null,
+    embeds: [embed],
+    components: [row],
+    allowedMentions: { parse: ping ? ['everyone'] : [] }
+  });
 }
 
 module.exports = { data, execute };
