@@ -1,6 +1,4 @@
 // handlers/interactionHandler.js
-// Slash komutlar + buton + modal interaction'larını yönetir
-
 const { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = async function interactionHandler(client, interaction) {
@@ -13,27 +11,38 @@ module.exports = async function interactionHandler(client, interaction) {
       await command.execute(interaction, client);
     } catch (err) {
       console.error(`/${interaction.commandName} hatası:`, err);
-      const msg = { content: '❌ Komut çalışırken bir hata oluştu.', ephemeral: true 
+      const msg = { content: '❌ Komut çalışırken bir hata oluştu.', ephemeral: true };
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(msg).catch(() => {});
+      } else {
+        await interaction.reply(msg).catch(() => {});
+      }
+    }
+    return;
+  }
+
+  const kayitVerisi = client.kayitVerisi;
+
   // ─── ANKET BUTONLARI ───
   if (interaction.isButton() && interaction.customId.startsWith('anket_')) {
     const msg = interaction.message;
     const embed = msg.embeds[0];
     if (!embed) return interaction.reply({ content: '❌ Anket bulunamadı.', ephemeral: true });
 
-    // Anketi kapat
     if (interaction.customId === 'anket_kapat') {
       const isMod = process.env.MODERATOR_ROL_ID
         ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
         : interaction.member.permissions.has('Administrator');
       if (!isMod) return interaction.reply({ content: '❌ Sadece moderatörler anketi kapatabilir.', ephemeral: true });
 
-      const kapalıEmbed = EmbedBuilder.from(embed).setColor(0x808080).setTitle('🔒 ' + embed.title.replace('📊 ', '')).setFooter({ text: embed.footer.text + ' • Kapatıldı' });
+      const kapalıEmbed = EmbedBuilder.from(embed)
+        .setColor(0x808080)
+        .setTitle('🔒 ' + embed.title.replace('📊 ', ''))
+        .setFooter({ text: embed.footer.text + ' • Kapatıldı' });
       await msg.edit({ embeds: [kapalıEmbed], components: [] });
       return interaction.reply({ content: '✅ Anket kapatıldı.', ephemeral: true });
     }
 
-    // Oy ver
-    const oylar = msg.reactions?.cache || new Map();
     const fields = embed.fields;
     const evetField = fields.find(f => f.name === '✅ Evet');
     const hayirField = fields.find(f => f.name === '❌ Hayır');
@@ -41,10 +50,8 @@ module.exports = async function interactionHandler(client, interaction) {
     let evetOy = parseInt(evetField?.value) || 0;
     let hayirOy = parseInt(hayirField?.value) || 0;
 
-    // Kullanıcı daha önce oy verdi mi? (footer'da sakla)
-    const oyVerenler = msg.components[0]?.components ? 
-      (embed.description?.match(/OYVERENLER:(.*)/)?.[1]?.split(',') || []) : [];
-    
+    const oyVerenler = embed.description?.match(/OYVERENLER:(.*)/)?.[1]?.split(',').filter(Boolean) || [];
+
     if (oyVerenler.includes(interaction.user.id)) {
       return interaction.reply({ content: '❌ Zaten oy verdin!', ephemeral: true });
     }
@@ -57,39 +64,22 @@ module.exports = async function interactionHandler(client, interaction) {
     const evetYuzde = toplamOy > 0 ? Math.round((evetOy / toplamOy) * 100) : 0;
     const hayirYuzde = toplamOy > 0 ? Math.round((hayirOy / toplamOy) * 100) : 0;
 
-    const baslik = embed.title;
-    const aciklama = embed.description?.replace(/
-OYVERENLER:.*/s, '') || null;
+    const aciklama = embed.description?.replace(/\nOYVERENLER:.*/s, '').replace(/OYVERENLER:.*/s, '') || null;
 
     const yeniEmbed = new EmbedBuilder()
-      .setTitle(baslik)
+      .setTitle(embed.title)
       .setColor(0x5865F2)
       .addFields(
         { name: '✅ Evet', value: `${evetOy} oy (${evetYuzde}%)`, inline: true },
         { name: '❌ Hayır', value: `${hayirOy} oy (${hayirYuzde}%)`, inline: true },
       )
+      .setDescription((aciklama ? aciklama + '\n' : '') + 'OYVERENLER:' + oyVerenler.join(','))
       .setFooter({ text: embed.footer.text })
       .setTimestamp(embed.timestamp ? new Date(embed.timestamp) : null);
-
-    if (aciklama) yeniEmbed.setDescription(aciklama + '
-OYVERENLER:' + oyVerenler.join(','));
-    else yeniEmbed.setDescription('OYVERENLER:' + oyVerenler.join(','));
 
     await msg.edit({ embeds: [yeniEmbed] });
     return interaction.reply({ content: `✅ Oyun kaydedildi! (${interaction.customId === 'anket_evet' ? 'Evet' : 'Hayır'})`, ephemeral: true });
   }
-
-};
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(msg).catch(() => {});
-      } else {
-        await interaction.reply(msg).catch(() => {});
-      }
-    }
-    return;
-  }
-
-  const kayitVerisi = client.kayitVerisi;
 
   // ─── KAYIT BAŞLAT BUTONU ───
   if (interaction.isButton() && interaction.customId === 'kayit_baslat') {
@@ -97,7 +87,6 @@ OYVERENLER:' + oyVerenler.join(','));
       return interaction.reply({ content: '✅ Zaten kayıtlısın!', ephemeral: true });
     }
     const modal = new ModalBuilder().setCustomId('kayit_modal').setTitle('Kayıt Formu');
-
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder().setCustomId('isim').setLabel('Adın')
@@ -160,19 +149,15 @@ OYVERENLER:' + oyVerenler.join(','));
     }
 
     const modal = new ModalBuilder().setCustomId(`guncelle_modal_${hedefId}`).setTitle('Kayıt Güncelleme Formu');
-
     const isimInput = new TextInputBuilder().setCustomId('isim').setLabel('Yeni İsim')
       .setPlaceholder('Örnek: Emre').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(32);
     if (mevcutBilgi?.isim) isimInput.setValue(mevcutBilgi.isim);
-
     const yasInput = new TextInputBuilder().setCustomId('yas').setLabel('Yeni Yaş')
       .setPlaceholder('Örnek: 18').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(3);
     if (mevcutBilgi?.yas) yasInput.setValue(`${mevcutBilgi.yas}`);
-
     const ignInput = new TextInputBuilder().setCustomId('ign').setLabel('Yeni IGN (Opsiyonel)')
       .setPlaceholder('MLBB nickini gir ya da boş bırak').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
     if (mevcutBilgi?.ign) ignInput.setValue(mevcutBilgi.ign);
-
     const oyunIdInput = new TextInputBuilder().setCustomId('oyunId').setLabel('Yeni Oyun ID (Opsiyonel)')
       .setPlaceholder('Örnek: 123456789 (1234)').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(32);
     if (mevcutBilgi?.oyunId) oyunIdInput.setValue(mevcutBilgi.oyunId);
@@ -225,18 +210,12 @@ OYVERENLER:' + oyVerenler.join(','));
     }
 
     try {
-      // Member'ı fresh fetch et — cache'deki eski veriyle rol sorunlarını önler
       const freshMember = await guild.members.fetch(member.id).catch(() => member);
-
       if (process.env.KAYITLI_ROL_ID) {
-        await freshMember.roles.add(process.env.KAYITLI_ROL_ID).catch(err => {
-          console.error('Kayıtlı rol eklenemedi:', err);
-        });
+        await freshMember.roles.add(process.env.KAYITLI_ROL_ID).catch(err => console.error('Kayıtlı rol eklenemedi:', err));
       }
       if (process.env.KAYITSIZ_ROL_ID) {
-        await freshMember.roles.remove(process.env.KAYITSIZ_ROL_ID).catch(err => {
-          console.error('Kayıtsız rol alınamadı:', err);
-        });
+        await freshMember.roles.remove(process.env.KAYITSIZ_ROL_ID).catch(err => console.error('Kayıtsız rol alınamadı:', err));
       }
       const nick = ign ? `${isim} (${ign}) | ${yasNum}` : `${isim} | ${yasNum}`;
       await freshMember.setNickname(nick).catch(() => {});
