@@ -20,7 +20,7 @@ const commandModules = [
   require('./commands/rankguncelle'),
   ...require('./commands/sustur').commands,
   ...require('./commands/eglence').commands,
-  require('./commands/anket'),
+  ...require('./commands/anket'),
   ...require('./commands/uyari').commands,
   ...require('./commands/rol').commands,
   ...require('./commands/tekrarla').commands,
