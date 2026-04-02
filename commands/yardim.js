@@ -251,7 +251,7 @@ function getKomutButonlari(kategoriKey) {
       chunk.map(key => {
         const d = komutDetaylari[key];
         const label = d.baslik.split(' — ')[0];
-        return new ButtonBuilder().setCustomId(`yardim_cmd_${key}`).setLabel(label).setStyle(ButtonStyle.Secondary);
+        return new ButtonBuilder().setCustomId(`yardim_cmd_${key}`).setLabel(label).setStyle(ButtonStyle.Success);
       })
     );
     rows.push(row);
