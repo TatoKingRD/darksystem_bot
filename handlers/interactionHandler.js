@@ -25,18 +25,41 @@ module.exports = async function interactionHandler(client, interaction) {
 
 
   // ─── YARDIM KATEGORİ BUTONLARI ───
-  if (interaction.isButton() && interaction.customId.startsWith('yardim_')) {
-    const { getEmbed, getRow } = require('../commands/yardim');
-    const kategori = interaction.customId.replace('yardim_', '');
+  if (interaction.isButton() && interaction.customId.startsWith('yardim_kat_')) {
+    const { getKategoriEmbed, getKategoriRow, getKomutButonlari } = require('../commands/yardim');
+    const kategori = interaction.customId.replace('yardim_kat_', '');
     const yetkili = (process.env.MODERATOR_ROL_ID
       ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
       : interaction.member.permissions.has('Administrator')) ||
       (process.env.ASISTAN_ROL_ID ? interaction.member.roles.cache.has(process.env.ASISTAN_ROL_ID) : false);
 
-    const embed = getEmbed(kategori, yetkili);
+    const embed = getKategoriEmbed(kategori);
+    const katRow = getKategoriRow(kategori, yetkili);
+    const cmdRows = getKomutButonlari(kategori);
+    return interaction.update({ embeds: [embed], components: [katRow, ...cmdRows] });
+  }
+
+  // ─── YARDIM KOMUT DETAY BUTONLARI ───
+  if (interaction.isButton() && interaction.customId.startsWith('yardim_cmd_')) {
+    const { getKomutDetayEmbed, getKategoriRow, getKomutButonlari, kategoriler } = require('../commands/yardim');
+    const komutKey = interaction.customId.replace('yardim_cmd_', '');
+    const yetkili = (process.env.MODERATOR_ROL_ID
+      ? interaction.member.roles.cache.has(process.env.MODERATOR_ROL_ID)
+      : interaction.member.permissions.has('Administrator')) ||
+      (process.env.ASISTAN_ROL_ID ? interaction.member.roles.cache.has(process.env.ASISTAN_ROL_ID) : false);
+
+    const embed = getKomutDetayEmbed(komutKey);
     if (!embed) return;
-    const rows = getRow(kategori, yetkili);
-    return interaction.update({ embeds: [embed], components: rows });
+
+    // Hangi kategoride bu komut var?
+    let aktifKat = 'genel';
+    for (const [key, kat] of Object.entries(kategoriler)) {
+      if (kat.komutlar.includes(komutKey)) { aktifKat = key; break; }
+    }
+
+    const katRow = getKategoriRow(aktifKat, yetkili);
+    const cmdRows = getKomutButonlari(aktifKat);
+    return interaction.update({ embeds: [embed], components: [katRow, ...cmdRows] });
   }
 
   // ─── ANKET BUTONLARI ───
