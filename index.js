@@ -18,6 +18,7 @@ const commandModules = [
   require('./commands/yardim'),
   require('./commands/profil'),
   require('./commands/kacgun'),
+  require('./commands/topkacgun'),
   require('./commands/rankguncelle'),
   ...require('./commands/sustur').commands,
   ...require('./commands/eglence').commands,
