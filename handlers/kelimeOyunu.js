@@ -9,11 +9,12 @@ const oyunDurumu = {
 };
 
 function normalize(str) {
-  return str.toLowerCase()
+  return str
     .replace(/İ/g, 'i').replace(/I/g, 'ı')
     .replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü')
     .replace(/Ş/g, 'ş').replace(/Ö/g, 'ö')
     .replace(/Ç/g, 'ç')
+    .toLowerCase()
     .trim();
 }
 
