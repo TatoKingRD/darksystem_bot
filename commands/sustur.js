@@ -32,8 +32,8 @@ const sureLabelMap = {
 // ─── /sustur ───
 const susturData = new SlashCommandBuilder()
   .setName('sustur')
-  .setDescription('Kullanıcıyı geçici olarak susturur [Yetkili]')
-  .addUserOption(opt => opt.setName('kullanici').setDescription('Susturulacak kullanıcı').setRequired(true))
+  .setDescription('Kullanıcıları geçici olarak susturur [Yetkili]')
+  .addUserOption(opt => opt.setName('kullanici1').setDescription('1. kullanıcı').setRequired(true))
   .addStringOption(opt => opt
     .setName('sure')
     .setDescription('Susturma süresi')
@@ -46,142 +46,169 @@ const susturData = new SlashCommandBuilder()
       { name: '📅 1 Gün', value: '1g' },
       { name: '📆 1 Hafta', value: '1w' },
     ))
-  .addStringOption(opt => opt
-    .setName('sebep')
-    .setDescription('Susturma sebebi')
-    .setRequired(false));
+  .addStringOption(opt => opt.setName('sebep').setDescription('Susturma sebebi').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici2').setDescription('2. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici3').setDescription('3. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici4').setDescription('4. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici5').setDescription('5. kullanıcı (opsiyonel)').setRequired(false));
 
 async function susturExecute(interaction) {
   if (!isYetkili(interaction.member)) {
     return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
   }
 
-  const hedef = interaction.options.getMember('kullanici');
+  await interaction.deferReply({ ephemeral: true });
+
   const sureKey = interaction.options.getString('sure');
   const sebep = interaction.options.getString('sebep') || 'Sebep belirtilmedi';
-
-  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
-  if (hedef.id === interaction.client.user.id) return interaction.reply({ content: '❌ Beni susturamazsın!', ephemeral: true });
-  if (hedef.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Yöneticileri susturamazsın.', ephemeral: true });
-
   const sureMs = sureMsMap[sureKey];
   const sureLabel = sureLabelMap[sureKey];
   const bitis = Math.floor((Date.now() + sureMs) / 1000);
 
-  try {
-    await hedef.timeout(sureMs, sebep);
+  const hedefler = [
+    interaction.options.getMember('kullanici1'),
+    interaction.options.getMember('kullanici2'),
+    interaction.options.getMember('kullanici3'),
+    interaction.options.getMember('kullanici4'),
+    interaction.options.getMember('kullanici5'),
+  ].filter(Boolean);
 
-    // Kullanıcıya DM
-    await hedef.send({ embeds: [new EmbedBuilder()
-      .setTitle('🔇 Susturuldunuz')
-      .setColor(0xFF0000)
-      .addFields(
-        { name: '⏱️ Süre', value: sureLabel, inline: true },
-        { name: '📅 Bitiş', value: `<t:${bitis}:R>`, inline: true },
-        { name: '📝 Sebep', value: sebep, inline: false },
-      )
-      .setFooter({ text: interaction.guild.name })
-      .setTimestamp()]
-    }).catch(() => {});
+  const basarili = [];
+  const basarisiz = [];
+  const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
 
-    // Log kanalı
-    const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
-    if (logKanal) {
-      await logKanal.send({ embeds: [new EmbedBuilder()
-        .setTitle('🔇 Kullanıcı Susturuldu')
+  for (const hedef of hedefler) {
+    if (hedef.id === interaction.client.user.id) { basarisiz.push(`<@${hedef.id}> (ben botum)`); continue; }
+    if (hedef.permissions.has(PermissionFlagsBits.Administrator)) { basarisiz.push(`<@${hedef.id}> (yönetici)`); continue; }
+
+    try {
+      await hedef.timeout(sureMs, sebep);
+
+      await hedef.send({ embeds: [new EmbedBuilder()
+        .setTitle('🔇 Susturuldunuz')
         .setColor(0xFF0000)
         .addFields(
-          { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-          { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: false },
           { name: '⏱️ Süre', value: sureLabel, inline: true },
-          { name: '📅 Bitiş', value: `<t:${bitis}:F>`, inline: true },
+          { name: '📅 Bitiş', value: `<t:${bitis}:R>`, inline: true },
           { name: '📝 Sebep', value: sebep, inline: false },
         )
-        .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })
+        .setFooter({ text: interaction.guild.name })
         .setTimestamp()]
-      });
+      }).catch(() => {});
+
+      if (logKanal) {
+        await logKanal.send({ embeds: [new EmbedBuilder()
+          .setTitle('🔇 Kullanıcı Susturuldu')
+          .setColor(0xFF0000)
+          .addFields(
+            { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+            { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: false },
+            { name: '⏱️ Süre', value: sureLabel, inline: true },
+            { name: '📅 Bitiş', value: `<t:${bitis}:F>`, inline: true },
+            { name: '📝 Sebep', value: sebep, inline: false },
+          )
+          .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })
+          .setTimestamp()]
+        });
+      }
+
+      basarili.push(`<@${hedef.id}>`);
+    } catch {
+      basarisiz.push(`<@${hedef.id}> (hata)`);
     }
-
-    await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
-      .setTitle('✅ Kullanıcı Susturuldu')
-      .setColor(0x57F287)
-      .addFields(
-        { name: '👤 Kullanıcı', value: `<@${hedef.id}>`, inline: true },
-        { name: '⏱️ Süre', value: sureLabel, inline: true },
-        { name: '📅 Bitiş', value: `<t:${bitis}:R>`, inline: true },
-        { name: '📝 Sebep', value: sebep, inline: false },
-      )
-      .setTimestamp()]
-    });
-
-  } catch (err) {
-    console.error('Susturma hatası:', err);
-    await interaction.reply({ content: '❌ Kullanıcı susturulamadı. Botun yeterli yetkisi var mı?', ephemeral: true });
   }
+
+  const embed = new EmbedBuilder()
+    .setTitle('🔇 Susturma Sonucu')
+    .setColor(basarili.length > 0 ? 0x57F287 : 0xFF0000)
+    .addFields(
+      { name: '⏱️ Süre', value: sureLabel, inline: true },
+      { name: '📅 Bitiş', value: `<t:${bitis}:R>`, inline: true },
+      { name: '📝 Sebep', value: sebep, inline: false },
+    )
+    .setTimestamp();
+
+  if (basarili.length > 0) embed.addFields({ name: `✅ Susturulan (${basarili.length})`, value: basarili.join('\n'), inline: false });
+  if (basarisiz.length > 0) embed.addFields({ name: `❌ Başarısız (${basarisiz.length})`, value: basarisiz.join('\n'), inline: false });
+
+  await interaction.editReply({ embeds: [embed] });
 }
 
 // ─── /sustursil ───
 const sustursilData = new SlashCommandBuilder()
   .setName('sustursil')
-  .setDescription('Kullanıcının susturmasını kaldırır [Yetkili]')
-  .addUserOption(opt => opt.setName('kullanici').setDescription('Susturması kaldırılacak kullanıcı').setRequired(true))
-  .addStringOption(opt => opt.setName('sebep').setDescription('Susturma kaldırma sebebi').setRequired(false));
+  .setDescription('Kullanıcıların susturmasını kaldırır [Yetkili]')
+  .addUserOption(opt => opt.setName('kullanici1').setDescription('1. kullanıcı').setRequired(true))
+  .addStringOption(opt => opt.setName('sebep').setDescription('Susturma kaldırma sebebi').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici2').setDescription('2. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici3').setDescription('3. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici4').setDescription('4. kullanıcı (opsiyonel)').setRequired(false))
+  .addUserOption(opt => opt.setName('kullanici5').setDescription('5. kullanıcı (opsiyonel)').setRequired(false));
 
 async function sustursilExecute(interaction) {
   if (!isYetkili(interaction.member)) {
     return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
   }
 
-  const hedef = interaction.options.getMember('kullanici');
+  await interaction.deferReply({ ephemeral: true });
+
   const sebep = interaction.options.getString('sebep') || 'Sebep belirtilmedi';
+  const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
 
-  if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
+  const hedefler = [
+    interaction.options.getMember('kullanici1'),
+    interaction.options.getMember('kullanici2'),
+    interaction.options.getMember('kullanici3'),
+    interaction.options.getMember('kullanici4'),
+    interaction.options.getMember('kullanici5'),
+  ].filter(Boolean);
 
-  if (!hedef.isCommunicationDisabled()) {
-    return interaction.reply({ content: '❌ Bu kullanıcı zaten susturulmamış.', ephemeral: true });
-  }
+  const basarili = [];
+  const basarisiz = [];
 
-  try {
-    await hedef.timeout(null, sebep);
+  for (const hedef of hedefler) {
+    if (!hedef.isCommunicationDisabled()) { basarisiz.push(`<@${hedef.id}> (susturulmamış)`); continue; }
 
-    // Kullanıcıya DM
-    await hedef.send({ embeds: [new EmbedBuilder()
-      .setTitle('🔊 Susturmanız Kaldırıldı')
-      .setColor(0x57F287)
-      .addFields(
-        { name: '📝 Sebep', value: sebep, inline: false },
-      )
-      .setFooter({ text: interaction.guild.name })
-      .setTimestamp()]
-    }).catch(() => {});
+    try {
+      await hedef.timeout(null, sebep);
 
-    // Log kanalı
-    const logKanal = interaction.guild.channels.cache.get(process.env.LOG_KANAL_ID);
-    if (logKanal) {
-      await logKanal.send({ embeds: [new EmbedBuilder()
-        .setTitle('🔊 Susturma Kaldırıldı')
+      await hedef.send({ embeds: [new EmbedBuilder()
+        .setTitle('🔊 Susturmanız Kaldırıldı')
         .setColor(0x57F287)
-        .addFields(
-          { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
-          { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: false },
-          { name: '📝 Sebep', value: sebep, inline: false },
-        )
-        .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })
+        .addFields({ name: '📝 Sebep', value: sebep, inline: false })
+        .setFooter({ text: interaction.guild.name })
         .setTimestamp()]
-      });
+      }).catch(() => {});
+
+      if (logKanal) {
+        await logKanal.send({ embeds: [new EmbedBuilder()
+          .setTitle('🔊 Susturma Kaldırıldı')
+          .setColor(0x57F287)
+          .addFields(
+            { name: '👤 Kullanıcı', value: `<@${hedef.id}> (${hedef.user.tag})`, inline: false },
+            { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: false },
+            { name: '📝 Sebep', value: sebep, inline: false },
+          )
+          .setFooter({ text: `Kullanıcı ID: ${hedef.id}` })
+          .setTimestamp()]
+        });
+      }
+
+      basarili.push(`<@${hedef.id}>`);
+    } catch {
+      basarisiz.push(`<@${hedef.id}> (hata)`);
     }
-
-    await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
-      .setTitle('✅ Susturma Kaldırıldı')
-      .setColor(0x57F287)
-      .setDescription(`<@${hedef.id}> kullanıcısının susturması kaldırıldı.`)
-      .setTimestamp()]
-    });
-
-  } catch (err) {
-    console.error('Susturma kaldırma hatası:', err);
-    await interaction.reply({ content: '❌ Susturma kaldırılamadı.', ephemeral: true });
   }
+
+  const embed = new EmbedBuilder()
+    .setTitle('🔊 Susturma Kaldırma Sonucu')
+    .setColor(basarili.length > 0 ? 0x57F287 : 0xFF0000)
+    .setTimestamp();
+
+  if (basarili.length > 0) embed.addFields({ name: `✅ Kaldırılan (${basarili.length})`, value: basarili.join('\n'), inline: false });
+  if (basarisiz.length > 0) embed.addFields({ name: `❌ Başarısız (${basarisiz.length})`, value: basarisiz.join('\n'), inline: false });
+
+  await interaction.editReply({ embeds: [embed] });
 }
 
 const commands = [
