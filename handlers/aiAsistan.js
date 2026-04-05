@@ -140,6 +140,7 @@ cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 - uye_ban: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 - uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 - kanal_listele: {}
+- kanal_temizle: {} (tüm kanalların başındaki özel karakterleri/emojileri kaldırır)
 
 E�er normal bir soru/sohbetse JSON değil, düz Türkçe cevap ver.
 Her zaman kısa ve net ol. Bilmediğini uydurma.`;
@@ -187,6 +188,23 @@ async function islemUygula(interaction, islem, guild) {
         if (!rol) return '❌ Rol bulunamadı.';
         await uye.roles.remove(rol);
         return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
+      }
+      case 'kanal_temizle': {
+        const kanallar = guild.channels.cache.filter(c => c.type === 0);
+        let degistirilen = 0;
+        for (const [, k] of kanallar) {
+          // Emoji ve özel karakterleri temizle, sadece harf/rakam/tire/tire bırak
+          const temizAd = k.name
+            .replace(/[^a-z0-9À-ɏ-]/gi, '')
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase()
+            .trim();
+          if (temizAd && temizAd !== k.name) {
+            await k.setName(temizAd).catch(() => {});
+            degistirilen++;
+          }
+        }
+        return `✅ ${degistirilen} kanalın adı temizlendi.`;
       }
       case 'kanal_listele': {
         const kanallar = guild.channels.cache
@@ -260,8 +278,10 @@ module.exports = async function aiAsistan(message, client) {
   let islem = null;
   try {
     const temiz = cevap.trim().replace(/```json|```/g, '').trim();
-    if (temiz.startsWith('{') && temiz.includes('"islem"')) {
-      islem = JSON.parse(temiz);
+    // Sadece ilk JSON bloğunu al
+    const jsonMatch = temiz.match(/\{[^{}]*"islem"[^{}]*\}/);
+    if (jsonMatch) {
+      islem = JSON.parse(jsonMatch[0]);
     }
   } catch {}
 
