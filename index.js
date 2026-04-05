@@ -45,7 +45,7 @@ const kelimeOyunu = require('./handlers/kelimeOyunu');
 const aiAsistan = require('./handlers/aiAsistan');
 client.on('messageCreate', (message) => {
   kelimeOyunu(message);
-  aiAsistan(message, client);
+  aiAsistan(message, client).catch(err => console.error('AI Asistan hatası:', err));
 });
 
 // Yeni üye
