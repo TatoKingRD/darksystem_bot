@@ -3,6 +3,80 @@ const https = require('https');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const konusmaTarihi = new Map();
+
+// Kanal ID'si için env variable: AI_ARSIV_KANAL_ID
+async function gecmisiKanaldenYukle(client, userId) {
+  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
+  if (!kanal) return [];
+  
+  const mesajlar = [];
+  let lastId = null;
+  
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
+    const fetched = await kanal.messages.fetch(options).catch(() => null);
+    if (!fetched || fetched.size === 0) break;
+    
+    for (const [, msg] of fetched) {
+      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
+        const fields = msg.embeds[0].fields || [];
+        for (const f of fields) {
+          if (f.name === 'kullanici') mesajlar.unshift({ role: 'user', content: f.value });
+          if (f.name === 'asistan') mesajlar.unshift({ role: 'assistant', content: f.value });
+        }
+        break;
+      }
+    }
+    if (mesajlar.length > 0) break;
+    if (fetched.size < 100) break;
+    lastId = fetched.last().id;
+  }
+  
+  return mesajlar.slice(-20); // son 10 çift
+}
+
+async function gecmisiKanaleSkaydet(client, userId, gecmis) {
+  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
+  if (!kanal) return;
+
+  const { EmbedBuilder } = require('discord.js');
+  
+  // Eski kaydı bul ve sil
+  let lastId = null;
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
+    const fetched = await kanal.messages.fetch(options).catch(() => null);
+    if (!fetched || fetched.size === 0) break;
+    
+    for (const [, msg] of fetched) {
+      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
+        await msg.delete().catch(() => {});
+        break;
+      }
+    }
+    break;
+  }
+
+  // Son 10 çifti kaydet
+  const sonGecmis = gecmis.slice(-20);
+  const fields = [];
+  for (const m of sonGecmis) {
+    fields.push({ name: m.role === 'user' ? 'kullanici' : 'asistan', value: m.content.slice(0, 1024), inline: false });
+  }
+  
+  if (fields.length === 0) return;
+
+  await kanal.send({ embeds: [new EmbedBuilder()
+    .setTitle(`💬 Konuşma Geçmişi`)
+    .setColor(0x5865F2)
+    .addFields(fields)
+    .setFooter({ text: `KONUSMA:${userId}` })
+    .setTimestamp()]
+  }).catch(() => {});
+}
+
 const bekleyenIslemler = new Map(); // mesaj ID => islem
 
 async function groqSor(mesajlar) {
@@ -136,7 +210,12 @@ module.exports = async function aiAsistan(message, client) {
 
   await message.channel.sendTyping();
 
-  const gecmis = konusmaTarihi.get(message.author.id) || [];
+  // Geçmişi bellekten al, yoksa kanaldan yükle
+  let gecmis = konusmaTarihi.get(message.author.id);
+  if (!gecmis) {
+    gecmis = await gecmisiKanaldenYukle(client, message.author.id);
+    konusmaTarihi.set(message.author.id, gecmis);
+  }
   const mesajlar = [
     { role: 'system', content: SISTEM_MESAJI },
     ...gecmis,
@@ -183,6 +262,7 @@ module.exports = async function aiAsistan(message, client) {
     gecmis.push({ role: 'assistant', content: cevap });
     if (gecmis.length > 20) gecmis.splice(0, 2);
     konusmaTarihi.set(message.author.id, gecmis);
+    gecmisiKanaleSkaydet(client, message.author.id, gecmis).catch(() => {});
 
     if (cevap.length <= 2000) {
       await message.reply(cevap);
