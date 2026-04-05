@@ -141,6 +141,7 @@ cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 - uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 - kanal_listele: {}
 - kanal_temizle: {} (tüm kanalların başındaki özel karakterleri/emojileri kaldırır)
+- kanal_emoji_ekle: {} (tüm kanallara adlarına uygun emoji ekler)
 
 E�er normal bir soru/sohbetse JSON değil, düz Türkçe cevap ver.
 Her zaman kısa ve net ol. Bilmediğini uydurma.`;
@@ -188,6 +189,57 @@ async function islemUygula(interaction, islem, guild) {
         if (!rol) return '❌ Rol bulunamadı.';
         await uye.roles.remove(rol);
         return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
+      }
+      case 'kanal_emoji_ekle': {
+        const emojiMap = {
+          genel: '💬', sohbet: '💬', chat: '💬',
+          duyuru: '📢', duyurular: '📢', announce: '📢',
+          oyun: '🎮', gaming: '🎮', mlbb: '🎮',
+          muzik: '🎵', müzik: '🎵', music: '🎵',
+          log: '📋', logs: '📋',
+          kayit: '📝', kayıt: '📝',
+          takim: '⚔️', takım: '⚔️', team: '⚔️',
+          resim: '🖼️', resimler: '🖼️', foto: '📸',
+          video: '🎬', videolar: '🎬',
+          kural: '📜', kurallar: '📜', rules: '📜',
+          yardim: '❓', yardım: '❓', help: '❓',
+          bot: '🤖',
+          arsiv: '🗄️', arşiv: '🗄️',
+          moderasyon: '🛡️', mod: '🛡️',
+          giris: '🚪', çıkış: '🚪', hos: '👋',
+          etkinlik: '🎉', event: '🎉',
+          turnuva: '🏆', tournament: '🏆',
+          strateji: '🧠', strateji: '🧠',
+          sponsor: '💼', partner: '🤝',
+          ticket: '🎫', destek: '🆘', support: '🆘',
+          sesli: '🔊', ses: '🔊', voice: '🔊',
+          rank: '🏅', ranklar: '🏅',
+          arama: '🔍', search: '🔍',
+          bilgi: 'ℹ️', info: 'ℹ️',
+          egitim: '📚', eğitim: '📚',
+          arkadas: '👥', arkadaş: '👥', friend: '👥',
+          disboard: '📌', bump: '📌',
+          kelime: '📝', spam: '🗑️',
+          ozel: '🔒', özel: '🔒', private: '🔒',
+          haber: '📰', news: '📰',
+          gorev: '✅', görev: '✅', task: '✅',
+        };
+
+        const kanallar = guild.channels.cache.filter(c => c.type === 0);
+        let degistirilen = 0;
+
+        for (const [, k] of kanallar) {
+          const adKucuk = k.name.toLowerCase();
+          let emoji = null;
+          for (const [anahtar, e] of Object.entries(emojiMap)) {
+            if (adKucuk.includes(anahtar)) { emoji = e; break; }
+          }
+          if (emoji && !k.name.startsWith(emoji)) {
+            await k.setName(emoji + k.name).catch(() => {});
+            degistirilen++;
+          }
+        }
+        return `✅ ${degistirilen} kanala emoji eklendi.`;
       }
       case 'kanal_temizle': {
         const kanallar = guild.channels.cache.filter(c => c.type === 0);
