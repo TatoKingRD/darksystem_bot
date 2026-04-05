@@ -41,7 +41,12 @@ client.on('interactionCreate', (interaction) => interactionHandler(client, inter
 
 // Kelime oyunu handler
 const kelimeOyunu = require('./handlers/kelimeOyunu');
-client.on('messageCreate', (message) => kelimeOyunu(message));
+// AI Asistan handler
+const aiAsistan = require('./handlers/aiAsistan');
+client.on('messageCreate', (message) => {
+  kelimeOyunu(message);
+  aiAsistan(message, client);
+});
 
 // Yeni üye
 const hosgeldinGonder = require('./commands/hosgeldin');
