@@ -139,6 +139,7 @@ cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 - rol_al: {"kullanici_id": "id", "rol_adi": "rol adı"}
 - uye_ban: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 - uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
+- kanal_listele: {}
 
 E�er normal bir soru/sohbetse JSON değil, düz Türkçe cevap ver.
 Her zaman kısa ve net ol. Bilmediğini uydurma.`;
@@ -186,6 +187,14 @@ async function islemUygula(interaction, islem, guild) {
         if (!rol) return '❌ Rol bulunamadı.';
         await uye.roles.remove(rol);
         return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
+      }
+      case 'kanal_listele': {
+        const kanallar = guild.channels.cache
+          .filter(c => c.type === 0)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(c => `📢 #${c.name}`)
+          .join('\n');
+        return `**Sunucudaki kanallar:**\n${kanallar || 'Kanal bulunamadı.'}`;
       }
       case 'uye_ban': {
         // Mention formatını temizle
