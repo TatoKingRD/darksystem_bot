@@ -137,6 +137,8 @@ cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 - kanal_olustur: {"kanal_adi": "yeni kanal adı", "kategori": "kategori adı (opsiyonel)"}
 - rol_ver: {"kullanici_id": "id", "rol_adi": "rol adı"}
 - rol_al: {"kullanici_id": "id", "rol_adi": "rol adı"}
+- uye_ban: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
+- uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 
 E�er normal bir soru/sohbetse JSON değil, düz Türkçe cevap ver.
 Her zaman kısa ve net ol. Bilmediğini uydurma.`;
@@ -185,6 +187,23 @@ async function islemUygula(interaction, islem, guild) {
         await uye.roles.remove(rol);
         return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
       }
+      case 'uye_ban': {
+        // Mention formatını temizle
+        const banId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const banUye = await guild.members.fetch(banId).catch(() => null);
+        if (!banUye) return '❌ Kullanıcı bulunamadı.';
+        const banSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
+        await banUye.ban({ reason: banSebep });
+        return `✅ **${banUye.user.tag}** sunucudan banlandı. Sebep: ${banSebep}`;
+      }
+      case 'uye_kick': {
+        const kickId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const kickUye = await guild.members.fetch(kickId).catch(() => null);
+        if (!kickUye) return '❌ Kullanıcı bulunamadı.';
+        const kickSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
+        await kickUye.kick(kickSebep);
+        return `✅ **${kickUye.user.tag}** sunucudan atıldı. Sebep: ${kickSebep}`;
+      }
       default:
         return '❌ Bilinmeyen işlem.';
     }
@@ -207,6 +226,10 @@ module.exports = async function aiAsistan(message, client) {
     .trim();
 
   if (!soru) return message.reply('Merhaba! 👋 Sana nasıl yardımcı olabilirim?');
+
+  // İşlem yapma yetkisi sadece sunucu sahibinde
+  const sahipId = process.env.AI_SAHIP_ID || '799564777839788033';
+  const islemYetkisi = message.author.id === sahipId;
 
   await message.channel.sendTyping();
 
@@ -232,6 +255,12 @@ module.exports = async function aiAsistan(message, client) {
       islem = JSON.parse(temiz);
     }
   } catch {}
+
+  if (islem && !islemYetkisi) {
+    // Yetkisiz işlem girişimi
+    await message.reply('❌ Sunucu işlemlerini sadece sunucu sahibi yaptırabilir.');
+    return;
+  }
 
   if (islem) {
     // Onay sistemi
