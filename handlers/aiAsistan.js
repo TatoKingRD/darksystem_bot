@@ -278,10 +278,12 @@ module.exports = async function aiAsistan(message, client) {
   let islem = null;
   try {
     const temiz = cevap.trim().replace(/```json|```/g, '').trim();
-    // Sadece ilk JSON bloğunu al
-    const jsonMatch = temiz.match(/\{[^{}]*"islem"[^{}]*\}/);
-    if (jsonMatch) {
-      islem = JSON.parse(jsonMatch[0]);
+    // İlk { ile son } arasını al
+    const ilk = temiz.indexOf('{');
+    const son = temiz.lastIndexOf('}');
+    if (ilk !== -1 && son !== -1 && temiz.includes('"islem"')) {
+      const jsonStr = temiz.slice(ilk, son + 1);
+      islem = JSON.parse(jsonStr);
     }
   } catch {}
 
