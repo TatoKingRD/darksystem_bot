@@ -24,6 +24,35 @@ module.exports = async function interactionHandler(client, interaction) {
   const kayitVerisi = client.kayitVerisi;
 
 
+
+  // ─── AI ASISTAN ONAY BUTONLARI ───
+  if (interaction.isButton() && ['ai_onayla', 'ai_degistir', 'ai_reddet'].includes(interaction.customId)) {
+    const { bekleyenIslemler, islemUygula } = require('./aiAsistan');
+    const bekleyen = bekleyenIslemler.get(interaction.message.id);
+
+    if (!bekleyen) return interaction.reply({ content: '❌ Bu işlem süresi doldu.', ephemeral: true });
+    if (bekleyen.authorId !== interaction.user.id) return interaction.reply({ content: '❌ Bu işlemi sadece komutu veren kişi onaylayabilir.', ephemeral: true });
+
+    if (interaction.customId === 'ai_reddet') {
+      bekleyenIslemler.delete(interaction.message.id);
+      await interaction.update({ embeds: [new EmbedBuilder().setTitle('❌ İşlem İptal Edildi').setColor(0xFF0000)], components: [] });
+      return;
+    }
+
+    if (interaction.customId === 'ai_degistir') {
+      bekleyenIslemler.delete(interaction.message.id);
+      await interaction.update({ embeds: [new EmbedBuilder().setTitle('✏️ İşlem İptal Edildi').setDescription('Yeni isteğini yaz.').setColor(0xFFA500)], components: [] });
+      return;
+    }
+
+    if (interaction.customId === 'ai_onayla') {
+      await interaction.update({ embeds: [new EmbedBuilder().setTitle('⏳ Uygulanıyor...').setColor(0x5865F2)], components: [] });
+      const sonuc = await islemUygula(interaction, bekleyen.islem, bekleyen.guild);
+      bekleyenIslemler.delete(interaction.message.id);
+      await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('📋 Sonuç').setDescription(sonuc).setColor(sonuc.startsWith('✅') ? 0x57F287 : 0xFF0000)] });
+    }
+  }
+
   // ─── YARDIM KATEGORİ BUTONLARI ───
   if (interaction.isButton() && interaction.customId.startsWith('yardim_kat_')) {
     const { getKategoriEmbed, getKategoriRow, getKomutButonlari } = require('../commands/yardim');
