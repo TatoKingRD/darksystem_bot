@@ -324,8 +324,7 @@ module.exports = async function interactionHandler(client, interaction) {
       }).catch(() => {});
 
       await interaction.editReply({
-        content: `✅ **Kayıt başarılı!** Hoş geldin, **${isim}**! 🎉` +
-
+        content: `✅ **Kayıt başarılı!** Hoş geldin, **${isim}**! 🎉`
       });
     } catch (err) {
       console.error('Kayıt hatası:', err);
