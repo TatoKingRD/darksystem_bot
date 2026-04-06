@@ -3,91 +3,23 @@ const https = require('https');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const konusmaTarihi = new Map();
+const bekleyenIslemler = new Map();
 
-// Kanal ID'si için env variable: AI_ARSIV_KANAL_ID
-async function gecmisiKanaldenYukle(client, userId) {
-  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
-  if (!kanal) return [];
-  
-  const mesajlar = [];
-  let lastId = null;
-  
-  while (true) {
-    const options = { limit: 100 };
-    if (lastId) options.before = lastId;
-    const fetched = await kanal.messages.fetch(options).catch(() => null);
-    if (!fetched || fetched.size === 0) break;
-    
-    for (const [, msg] of fetched) {
-      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
-        const fields = msg.embeds[0].fields || [];
-        for (const f of fields) {
-          if (f.name === 'kullanici') mesajlar.unshift({ role: 'user', content: f.value });
-          if (f.name === 'asistan') mesajlar.unshift({ role: 'assistant', content: f.value });
-        }
-        break;
-      }
-    }
-    if (mesajlar.length > 0) break;
-    if (fetched.size < 100) break;
-    lastId = fetched.last().id;
-  }
-  
-  return mesajlar.slice(-20); // son 10 çift
-}
-
-async function gecmisiKanaleSkaydet(client, userId, gecmis) {
-  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
-  if (!kanal) return;
-
-  const { EmbedBuilder } = require('discord.js');
-  
-  // Eski kaydı bul ve sil
-  let lastId = null;
-  while (true) {
-    const options = { limit: 100 };
-    if (lastId) options.before = lastId;
-    const fetched = await kanal.messages.fetch(options).catch(() => null);
-    if (!fetched || fetched.size === 0) break;
-    
-    for (const [, msg] of fetched) {
-      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
-        await msg.delete().catch(() => {});
-        break;
-      }
-    }
-    break;
-  }
-
-  // Son 10 çifti kaydet
-  const sonGecmis = gecmis.slice(-20);
-  const fields = [];
-  for (const m of sonGecmis) {
-    fields.push({ name: m.role === 'user' ? 'kullanici' : 'asistan', value: m.content.slice(0, 1024), inline: false });
-  }
-  
-  if (fields.length === 0) return;
-
-  await kanal.send({ embeds: [new EmbedBuilder()
-    .setTitle(`💬 Konuşma Geçmişi`)
-    .setColor(0x5865F2)
-    .addFields(fields)
-    .setFooter({ text: `KONUSMA:${userId}` })
-    .setTimestamp()]
-  }).catch(() => {});
-}
-
-const bekleyenIslemler = new Map(); // mesaj ID => islem
-
-async function groqSor(mesajlar) {
+// ─── GROQ API (Function Calling) ───
+async function groqSor(mesajlar, araclar = null) {
   return new Promise((resolve) => {
-    const body = JSON.stringify({
+    const payload = {
       model: 'llama-3.3-70b-versatile',
       messages: mesajlar,
       max_tokens: 1024,
       temperature: 0.7,
-    });
+    };
+    if (araclar) {
+      payload.tools = araclar;
+      payload.tool_choice = 'auto';
+    }
 
+    const body = JSON.stringify(payload);
     const options = {
       hostname: 'api.groq.com',
       path: '/openai/v1/chat/completions',
@@ -104,292 +36,399 @@ async function groqSor(mesajlar) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
-          const json = JSON.parse(data);
-          resolve(json.choices?.[0]?.message?.content || '❌ Cevap alınamadı.');
+          resolve(JSON.parse(data));
         } catch {
-          resolve('❌ Bir hata oluştu.');
+          resolve(null);
         }
       });
     });
 
-    req.on('error', () => resolve('❌ Bağlantı hatası.'));
-    req.setTimeout(10000, () => { req.destroy(); resolve('❌ Zaman aşımı.'); });
+    req.on('error', () => resolve(null));
+    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
     req.write(body);
     req.end();
   });
 }
 
-const SISTEM_MESAJI = `Sen MLBB TR Discord sunucusunun yapay zeka asistanısın. Adın "DARKSYSTEM". Llama veya başka bir model olduğunu söyleme, sadece DARKSYSTEM olduğunu söyle.
+// ─── ARAÇLAR (Tools) ───
+const ARACLAR = [
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_adi_degistir',
+      description: 'Bir kanalın adını değiştirir',
+      parameters: {
+        type: 'object',
+        properties: {
+          kanal_adi: { type: 'string', description: 'Mevcut kanal adı' },
+          yeni_ad: { type: 'string', description: 'Yeni kanal adı' },
+        },
+        required: ['kanal_adi', 'yeni_ad'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_olustur',
+      description: 'Yeni bir kanal oluşturur',
+      parameters: {
+        type: 'object',
+        properties: {
+          kanal_adi: { type: 'string', description: 'Yeni kanalın adı' },
+        },
+        required: ['kanal_adi'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_sil',
+      description: 'Bir kanalı siler',
+      parameters: {
+        type: 'object',
+        properties: {
+          kanal_adi: { type: 'string', description: 'Silinecek kanalın adı' },
+        },
+        required: ['kanal_adi'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_listele',
+      description: 'Sunucudaki tüm kanalları listeler',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_temizle',
+      description: 'Tüm kanalların başındaki özel karakter ve emojileri kaldırır',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_emoji_ekle',
+      description: 'Tüm kanallara adlarına uygun emoji ekler',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'uye_ban',
+      description: 'Bir üyeyi sunucudan banlar',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention' },
+          sebep: { type: 'string', description: 'Ban sebebi' },
+        },
+        required: ['kullanici_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'uye_kick',
+      description: 'Bir üyeyi sunucudan atar',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention' },
+          sebep: { type: 'string', description: 'Kick sebebi' },
+        },
+        required: ['kullanici_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'uye_sustur',
+      description: 'Bir üyeyi geçici olarak susturur',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention' },
+          sure: { type: 'string', description: 'Süre: 60s, 5m, 10m, 1h, 1g, 1w' },
+          sebep: { type: 'string', description: 'Susturma sebebi' },
+        },
+        required: ['kullanici_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rol_ver',
+      description: 'Kullanıcıya rol verir',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention' },
+          rol_adi: { type: 'string', description: 'Rol adı' },
+        },
+        required: ['kullanici_id', 'rol_adi'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rol_al',
+      description: 'Kullanıcıdan rol alır',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention' },
+          rol_adi: { type: 'string', description: 'Rol adı' },
+        },
+        required: ['kullanici_id', 'rol_adi'],
+      },
+    },
+  },
+];
 
-Görevlerin:
-- Üyelerin sorularını Türkçe olarak cevapla
-- Mobile Legends: Bang Bang hakkında bilgi ver
-- Sunucu yönetimi işlemlerini algıla ve JSON formatında döndür
+// ─── İŞLEM UYGULAMA ───
+async function islemUygula(islemAdi, parametreler, guild) {
+  const emojiMap = {
+    genel: '💬', sohbet: '💬', duyuru: '📢', duyurular: '📢',
+    oyun: '🎮', gaming: '🎮', mlbb: '🎮', muzik: '🎵', müzik: '🎵',
+    log: '📋', kayit: '📝', kayıt: '📝', takim: '⚔️', takım: '⚔️',
+    resim: '🖼️', video: '🎬', kural: '📜', kurallar: '📜',
+    yardim: '❓', yardım: '❓', bot: '🤖', arsiv: '🗄️', arşiv: '🗄️',
+    mod: '🛡️', ticket: '🎫', destek: '🆘', boost: '🚀',
+    cekilis: '🎁', çekiliş: '🎁', davet: '📨', emoji: '😄',
+    gorusuruz: '👋', görüşürüz: '👋', hakkinda: 'ℹ️', hakkında: 'ℹ️',
+    hikaye: '📖', hosgeldin: '🌟', hoşgeldin: '🌟', itiraf: '🤫',
+    karakter: '⚔️', kendin: '👤', level: '📊', levels: '📊',
+    mudae: '🃏', owo: '🐱', rol: '🎭', sayi: '🔢', sayı: '🔢',
+    ship: '💕', sikayet: '📣', şikayet: '📣', yetkili: '🛡️',
+    partner: '🤝', anime: '🎌', spam: '🗑️', disboard: '📌',
+    kelime: '📝', ozel: '🔒', özel: '🔒', anigame: '🎮',
+    aki: '🌸', wallpaper: '🖼️', icon: '🎨', oneri: '💡', öneri: '💡',
+    avantaj: '⭐', turnuva: '🏆', strateji: '🧠',
+  };
 
-E�er kullanıcı bir Discord sunucu işlemi yapmak istiyorsa (kanal adı değiştirme, kanal silme, kanal oluşturma vb.),
-cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
+  const sureMsMap = { '60s': 60000, '5m': 300000, '10m': 600000, '1h': 3600000, '1g': 86400000, '1w': 604800000 };
+  const sureLabelMap = { '60s': '60 Saniye', '5m': '5 Dakika', '10m': '10 Dakika', '1h': '1 Saat', '1g': '1 Gün', '1w': '1 Hafta' };
 
-{"islem": "ISLEM_TIPI", "parametreler": {...}, "aciklama": "Ne yapılacağının Türkçe açıklaması"}
-
-İşlem tipleri:
-- kanal_adi_degistir: {"kanal_adi": "mevcut ad", "yeni_ad": "yeni ad"}
-- kanal_sil: {"kanal_adi": "kanal adı"}
-- kanal_olustur: {"kanal_adi": "yeni kanal adı", "kategori": "kategori adı (opsiyonel)"}
-- rol_ver: {"kullanici_id": "id", "rol_adi": "rol adı"}
-- rol_al: {"kullanici_id": "id", "rol_adi": "rol adı"}
-- uye_ban: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
-- uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
-- uye_sustur: {"kullanici_id": "id veya mention", "sure": "60s/5m/10m/1h/1g/1w", "sebep": "sebep (opsiyonel)"}
-- kanal_listele: {}
-- kanal_temizle: {} (tüm kanalların başındaki özel karakterleri/emojileri kaldırır)
-- kanal_emoji_ekle: {} (tüm kanallara adlarına uygun emoji ekler)
-
-E�er normal bir soru/sohbetse JSON değil, düz Türkçe cevap ver.
-Her zaman kısa ve net ol. Bilmediğini uydurma.`;
-
-async function islemUygula(interaction, islem, guild) {
   try {
-    switch (islem.islem) {
+    switch (islemAdi) {
       case 'kanal_adi_degistir': {
-        const kanal = guild.channels.cache.find(c =>
-          c.name.toLowerCase() === islem.parametreler.kanal_adi.toLowerCase()
-        );
-        if (!kanal) return '❌ Kanal bulunamadı.';
-        const eskiAd = kanal.name;
-        await kanal.setName(islem.parametreler.yeni_ad);
-        return `✅ **#${eskiAd}** kanalının adı **#${islem.parametreler.yeni_ad}** olarak değiştirildi.`;
+        const kanal = guild.channels.cache.find(c => c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase());
+        if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
+        const eski = kanal.name;
+        await kanal.setName(parametreler.yeni_ad);
+        return `✅ **#${eski}** → **#${parametreler.yeni_ad}** olarak değiştirildi.`;
+      }
+      case 'kanal_olustur': {
+        const yeni = await guild.channels.create({ name: parametreler.kanal_adi, type: 0 });
+        return `✅ **#${yeni.name}** kanalı oluşturuldu.`;
       }
       case 'kanal_sil': {
-        const kanal = guild.channels.cache.find(c =>
-          c.name.toLowerCase() === islem.parametreler.kanal_adi.toLowerCase()
-        );
-        if (!kanal) return '❌ Kanal bulunamadı.';
+        const kanal = guild.channels.cache.find(c => c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase());
+        if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const ad = kanal.name;
         await kanal.delete();
         return `✅ **#${ad}** kanalı silindi.`;
       }
-      case 'kanal_olustur': {
-        const yeniKanal = await guild.channels.create({
-          name: islem.parametreler.kanal_adi,
-          type: 0,
-        });
-        return `✅ **#${yeniKanal.name}** kanalı oluşturuldu.`;
+      case 'kanal_listele': {
+        const liste = guild.channels.cache.filter(c => c.type === 0).sort((a, b) => a.name.localeCompare(b.name)).map(c => `📢 #${c.name}`).join('\n');
+        return `**Sunucudaki kanallar:**\n${liste}`;
       }
-      case 'rol_ver': {
-        const uye = await guild.members.fetch(islem.parametreler.kullanici_id).catch(() => null);
-        const rol = guild.roles.cache.find(r => r.name.toLowerCase() === islem.parametreler.rol_adi.toLowerCase());
-        if (!uye) return '❌ Kullanıcı bulunamadı.';
-        if (!rol) return '❌ Rol bulunamadı.';
-        await uye.roles.add(rol);
-        return `✅ <@${uye.id}> kullanıcısına **${rol.name}** rolü verildi.`;
-      }
-      case 'rol_al': {
-        const uye = await guild.members.fetch(islem.parametreler.kullanici_id).catch(() => null);
-        const rol = guild.roles.cache.find(r => r.name.toLowerCase() === islem.parametreler.rol_adi.toLowerCase());
-        if (!uye) return '❌ Kullanıcı bulunamadı.';
-        if (!rol) return '❌ Rol bulunamadı.';
-        await uye.roles.remove(rol);
-        return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
+      case 'kanal_temizle': {
+        const kanallar = guild.channels.cache.filter(c => c.type === 0);
+        let n = 0;
+        for (const [, k] of kanallar) {
+          const temiz = k.name.replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '').replace(/^-+|-+$/g, '').toLowerCase().trim();
+          if (temiz && temiz !== k.name) { await k.setName(temiz).catch(() => {}); n++; }
+        }
+        return `✅ ${n} kanalın adı temizlendi.`;
       }
       case 'kanal_emoji_ekle': {
-        const emojiMap = {
-          genel: '💬', sohbet: '💬', chat: '💬',
-          duyuru: '📢', duyurular: '📢', announce: '📢',
-          oyun: '🎮', gaming: '🎮', mlbb: '🎮',
-          muzik: '🎵', müzik: '🎵', music: '🎵',
-          log: '📋', logs: '📋',
-          kayit: '📝', kayıt: '📝',
-          takim: '⚔️', takım: '⚔️', team: '⚔️',
-          resim: '🖼️', resimler: '🖼️', foto: '📸',
-          video: '🎬', videolar: '🎬',
-          kural: '📜', kurallar: '📜', rules: '📜',
-          yardim: '❓', yardım: '❓', help: '❓',
-          bot: '🤖',
-          arsiv: '🗄️', arşiv: '🗄️',
-          moderasyon: '🛡️', mod: '🛡️',
-          giris: '🚪', çıkış: '🚪', hos: '👋',
-          etkinlik: '🎉', event: '🎉',
-          turnuva: '🏆', tournament: '🏆',
-          strateji: '🧠', strateji: '🧠',
-          sponsor: '💼', partner: '🤝',
-          ticket: '🎫', destek: '🆘', support: '🆘',
-          sesli: '🔊', ses: '🔊', voice: '🔊',
-          rank: '🏅', ranklar: '🏅',
-          arama: '🔍', search: '🔍',
-          bilgi: 'ℹ️', info: 'ℹ️',
-          egitim: '📚', eğitim: '📚',
-          arkadas: '👥', arkadaş: '👥', friend: '👥',
-          disboard: '📌', bump: '📌',
-          kelime: '📝', spam: '🗑️',
-          ozel: '🔒', özel: '🔒', private: '🔒',
-          haber: '📰', news: '📰',
-          gorev: '✅', görev: '✅', task: '✅',
-          aki: '🌸', anigame: '🎮', anime: '🎌',
-          wallpaper: '🖼️', wallpapers: '🖼️',
-          icon: '🎨', gif: '🎭', matching: '💞',
-          oneri: '💡', öneri: '💡',
-          avantaj: '⭐', avantajlar: '⭐',
-          boost: '🚀',
-          cekilis: '🎁', çekiliş: '🎁', cekilisler: '🎁', çekilişler: '🎁',
-          davet: '📨', davetler: '📨',
-          emoji: '😄',
-          gorusuruz: '👋', görüşürüz: '👋',
-          hakkinda: 'ℹ️', hakkında: 'ℹ️',
-          hikaye: '📖', hikayeyi: '📖',
-          hosgeldin: '🌟', hoşgeldin: '🌟', hos: '🌟',
-          itiraf: '🤫',
-          karakter: '⚔️',
-          kendin: '👤', kendini: '👤',
-          level: '📊', levels: '📊',
-          mudae: '🃏',
-          owo: '🐱',
-          rolal: '🎭', rol: '🎭',
-          sayi: '🔢', sayı: '🔢',
-          ship: '💕',
-          sikayet: '📣', şikayet: '📣',
-          yetkili: '🛡️',
-          partner: '🤝',
-        };
-
         const kanallar = guild.channels.cache.filter(c => c.type === 0);
-        let degistirilen = 0;
-
+        let n = 0;
         for (const [, k] of kanallar) {
           const adKucuk = k.name.toLowerCase();
           let emoji = null;
           for (const [anahtar, e] of Object.entries(emojiMap)) {
             if (adKucuk.includes(anahtar)) { emoji = e; break; }
           }
-          if (emoji && !k.name.startsWith(emoji)) {
-            await k.setName(emoji + k.name).catch(() => {});
-            degistirilen++;
-          }
+          if (emoji && !k.name.startsWith(emoji)) { await k.setName(emoji + k.name).catch(() => {}); n++; }
         }
-        return `✅ ${degistirilen} kanala emoji eklendi.`;
-      }
-      case 'kanal_temizle': {
-        const kanallar = guild.channels.cache.filter(c => c.type === 0);
-        let degistirilen = 0;
-        for (const [, k] of kanallar) {
-          // Emoji ve özel karakterleri temizle, sadece harf/rakam/tire/tire bırak
-          const temizAd = k.name
-            .replace(/[^a-z0-9À-ɏ-]/gi, '')
-            .replace(/^-+|-+$/g, '')
-            .toLowerCase()
-            .trim();
-          if (temizAd && temizAd !== k.name) {
-            await k.setName(temizAd).catch(() => {});
-            degistirilen++;
-          }
-        }
-        return `✅ ${degistirilen} kanalın adı temizlendi.`;
-      }
-      case 'kanal_listele': {
-        const kanallar = guild.channels.cache
-          .filter(c => c.type === 0)
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map(c => `📢 #${c.name}`)
-          .join('\n');
-        return `**Sunucudaki kanallar:**\n${kanallar || 'Kanal bulunamadı.'}`;
-      }
-      case 'uye_sustur': {
-        const susturId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
-        const susturUye = await guild.members.fetch(susturId).catch(() => null);
-        if (!susturUye) return '❌ Kullanıcı bulunamadı.';
-        const sureMsMap = { '60s': 60000, '5m': 300000, '10m': 600000, '1h': 3600000, '1g': 86400000, '1w': 604800000 };
-        const sureLabelMap = { '60s': '60 Saniye', '5m': '5 Dakika', '10m': '10 Dakika', '1h': '1 Saat', '1g': '1 Gün', '1w': '1 Hafta' };
-        const sureKey = islem.parametreler.sure || '10m';
-        const sureMs = sureMsMap[sureKey] || 600000;
-        const sureLabel = sureLabelMap[sureKey] || '10 Dakika';
-        const susturSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
-        await susturUye.timeout(sureMs, susturSebep);
-        return `✅ **${susturUye.user.tag}** ${sureLabel} susturuldu. Sebep: ${susturSebep}`;
+        return `✅ ${n} kanala emoji eklendi.`;
       }
       case 'uye_ban': {
-        // Mention formatını temizle
-        const banId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
-        const banUye = await guild.members.fetch(banId).catch(() => null);
-        if (!banUye) return '❌ Kullanıcı bulunamadı.';
-        const banSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
-        await banUye.ban({ reason: banSebep });
-        return `✅ **${banUye.user.tag}** sunucudan banlandı. Sebep: ${banSebep}`;
+        const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const uye = await guild.members.fetch(id).catch(() => null);
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        await uye.ban({ reason: parametreler.sebep || 'Sebep belirtilmedi' });
+        return `✅ **${uye.user.tag}** banlandı.`;
       }
       case 'uye_kick': {
-        const kickId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
-        const kickUye = await guild.members.fetch(kickId).catch(() => null);
-        if (!kickUye) return '❌ Kullanıcı bulunamadı.';
-        const kickSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
-        await kickUye.kick(kickSebep);
-        return `✅ **${kickUye.user.tag}** sunucudan atıldı. Sebep: ${kickSebep}`;
+        const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const uye = await guild.members.fetch(id).catch(() => null);
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        await uye.kick(parametreler.sebep || 'Sebep belirtilmedi');
+        return `✅ **${uye.user.tag}** atıldı.`;
+      }
+      case 'uye_sustur': {
+        const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const uye = await guild.members.fetch(id).catch(() => null);
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        const sureMs = sureMsMap[parametreler.sure] || 600000;
+        const sureLabel = sureLabelMap[parametreler.sure] || '10 Dakika';
+        await uye.timeout(sureMs, parametreler.sebep || 'Sebep belirtilmedi');
+        return `✅ **${uye.user.tag}** ${sureLabel} susturuldu.`;
+      }
+      case 'rol_ver': {
+        const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const uye = await guild.members.fetch(id).catch(() => null);
+        const rol = guild.roles.cache.find(r => r.name.toLowerCase() === parametreler.rol_adi.toLowerCase());
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        if (!rol) return '❌ Rol bulunamadı.';
+        await uye.roles.add(rol);
+        return `✅ <@${uye.id}> kullanıcısına **${rol.name}** rolü verildi.`;
+      }
+      case 'rol_al': {
+        const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const uye = await guild.members.fetch(id).catch(() => null);
+        const rol = guild.roles.cache.find(r => r.name.toLowerCase() === parametreler.rol_adi.toLowerCase());
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        if (!rol) return '❌ Rol bulunamadı.';
+        await uye.roles.remove(rol);
+        return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
       }
       default:
         return '❌ Bilinmeyen işlem.';
     }
   } catch (err) {
-    console.error('İşlem hatası:', err);
-    return `❌ İşlem uygulanırken hata oluştu: ${err.message}`;
+    return `❌ Hata: ${err.message}`;
   }
 }
 
+// ─── GEÇMİŞ YÜKLEME/KAYDETME ───
+async function gecmisiKanaldenYukle(client, userId) {
+  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
+  if (!kanal) return [];
+  let lastId = null;
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
+    const fetched = await kanal.messages.fetch(options).catch(() => null);
+    if (!fetched || fetched.size === 0) break;
+    for (const [, msg] of fetched) {
+      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
+        const mesajlar = [];
+        for (const f of msg.embeds[0].fields || []) {
+          if (f.name === 'kullanici') mesajlar.push({ role: 'user', content: f.value });
+          if (f.name === 'asistan') mesajlar.push({ role: 'assistant', content: f.value });
+        }
+        return mesajlar.slice(-20);
+      }
+    }
+    if (fetched.size < 100) break;
+    lastId = fetched.last().id;
+  }
+  return [];
+}
+
+async function gecmisiKanalaKaydet(client, userId, gecmis) {
+  const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
+  if (!kanal) return;
+  let lastId = null;
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
+    const fetched = await kanal.messages.fetch(options).catch(() => null);
+    if (!fetched || fetched.size === 0) break;
+    for (const [, msg] of fetched) {
+      if (msg.embeds.length > 0 && msg.embeds[0].footer?.text === `KONUSMA:${userId}`) {
+        await msg.delete().catch(() => {});
+        break;
+      }
+    }
+    break;
+  }
+  const sonGecmis = gecmis.slice(-20);
+  const fields = sonGecmis.map(m => ({ name: m.role === 'user' ? 'kullanici' : 'asistan', value: m.content.slice(0, 1024), inline: false }));
+  if (fields.length === 0) return;
+  await kanal.send({ embeds: [new EmbedBuilder().setTitle('💬 Konuşma').setColor(0x5865F2).addFields(fields).setFooter({ text: `KONUSMA:${userId}` }).setTimestamp()] }).catch(() => {});
+}
+
+const SISTEM_MESAJI = `Sen MLBB TR Discord sunucusunun yapay zeka asistanısın. Adın "DARKSYSTEM".
+Türkçe konuş. Kısa ve net cevaplar ver.
+Kullanıcı bir Discord işlemi yapmak istiyorsa uygun aracı (tool) çağır.
+Sadece sohbet ediyorsa normal cevap ver, araç çağırma.
+Bilmediğini uydurma.`;
+
+// ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
+const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle'];
+
 module.exports = async function aiAsistan(message, client) {
   if (message.author.bot) return;
-
   const botMention = `<@${client.user.id}>`;
   const botMentionNick = `<@!${client.user.id}>`;
   if (!message.content.includes(botMention) && !message.content.includes(botMentionNick)) return;
 
-  const soru = message.content
-    .replace(botMention, '')
-    .replace(botMentionNick, '')
-    .trim();
+  const soru = message.content.replace(botMention, '').replace(botMentionNick, '').trim();
+  if (!soru) return message.reply('Merhaba! 👋 Nasıl yardımcı olabilirim?');
 
-  if (!soru) return message.reply('Merhaba! 👋 Sana nasıl yardımcı olabilirim?');
-
-  // İşlem yapma yetkisi sadece sunucu sahibinde
   const sahipId = process.env.AI_SAHIP_ID || '799564777839788033';
   const islemYetkisi = message.author.id === sahipId;
 
   await message.channel.sendTyping();
 
-  // Geçmişi bellekten al, yoksa kanaldan yükle
   let gecmis = konusmaTarihi.get(message.author.id);
   if (!gecmis) {
     gecmis = await gecmisiKanaldenYukle(client, message.author.id);
     konusmaTarihi.set(message.author.id, gecmis);
   }
+
   const mesajlar = [
     { role: 'system', content: SISTEM_MESAJI },
     ...gecmis,
     { role: 'user', content: soru }
   ];
 
-  const cevap = await groqSor(mesajlar);
+  const sonuc = await groqSor(mesajlar, ARACLAR);
+  if (!sonuc) return message.reply('❌ Bağlantı hatası.');
 
-  // JSON işlem mi?
-  let islem = null;
-  try {
-    const temiz = cevap.trim().replace(/```json|```/g, '').trim();
-    // İlk { ile son } arasını al
-    const ilk = temiz.indexOf('{');
-    const son = temiz.lastIndexOf('}');
-    if (ilk !== -1 && son !== -1 && temiz.includes('"islem"')) {
-      const jsonStr = temiz.slice(ilk, son + 1);
-      islem = JSON.parse(jsonStr);
+  const secim = sonuc.choices?.[0];
+  if (!secim) return message.reply('❌ Cevap alınamadı.');
+
+  // Tool call mı?
+  if (secim.finish_reason === 'tool_calls' && secim.message?.tool_calls?.length > 0) {
+    const toolCall = secim.message.tool_calls[0];
+    const islemAdi = toolCall.function.name;
+    let parametreler = {};
+    try { parametreler = JSON.parse(toolCall.function.arguments); } catch {}
+
+    if (!islemYetkisi) {
+      return message.reply('❌ Sunucu işlemlerini sadece sunucu sahibi yaptırabilir.');
     }
-  } catch {}
 
-  if (islem && !islemYetkisi) {
-    // Yetkisiz işlem girişimi
-    await message.reply('❌ Sunucu işlemlerini sadece sunucu sahibi yaptırabilir.');
-    return;
-  }
+    // Onaysız işlemler direkt uygula
+    if (ONAYSIZ.includes(islemAdi)) {
+      const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild);
+      return message.reply(sonucMesaj);
+    }
 
-  if (islem) {
-    // Onay sistemi
+    // Onay butonu
+    const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
     const embed = new EmbedBuilder()
       .setTitle('🤔 İşlem Onayı')
       .setColor(0xF39C12)
-      .setDescription(`**Şunu yapmak üzereyim:**\n\n${islem.aciklama}`)
+      .setDescription(`**${islemAdi.replace(/_/g, ' ').toUpperCase()}**\n\n${aciklama}`)
       .setFooter({ text: 'Onaylıyor musun?' });
 
     const row = new ActionRowBuilder().addComponents(
@@ -399,28 +438,19 @@ module.exports = async function aiAsistan(message, client) {
     );
 
     const onayMesaj = await message.reply({ embeds: [embed], components: [row] });
-    bekleyenIslemler.set(onayMesaj.id, { islem, guild: message.guild, authorId: message.author.id });
-
-    // 60 saniye sonra sil
-    setTimeout(() => {
-      bekleyenIslemler.delete(onayMesaj.id);
-      onayMesaj.edit({ components: [] }).catch(() => {});
-    }, 60000);
+    bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
+    setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
 
   } else {
     // Normal cevap
+    const cevap = secim.message?.content || '❌ Cevap alınamadı.';
     gecmis.push({ role: 'user', content: soru });
     gecmis.push({ role: 'assistant', content: cevap });
     if (gecmis.length > 20) gecmis.splice(0, 2);
     konusmaTarihi.set(message.author.id, gecmis);
-    gecmisiKanaleSkaydet(client, message.author.id, gecmis).catch(() => {});
-
-    if (cevap.length <= 2000) {
-      await message.reply(cevap);
-    } else {
-      const parcalar = cevap.match(/.{1,2000}/gs) || [];
-      for (const parca of parcalar) await message.channel.send(parca);
-    }
+    gecmisiKanalaKaydet(client, message.author.id, gecmis).catch(() => {});
+    if (cevap.length <= 2000) await message.reply(cevap);
+    else { const p = cevap.match(/.{1,2000}/gs) || []; for (const x of p) await message.channel.send(x); }
   }
 };
 
