@@ -455,12 +455,7 @@ module.exports = async function aiAsistan(message, client) {
     if (gecmis.length > 20) gecmis.splice(0, 2);
     konusmaTarihi.set(message.author.id, gecmis);
     gecmisiKanalaKaydet(client, message.author.id, gecmis).catch(() => {});
-    // JSON bloklarını temizle
-    const temizCevap = cevap.replace(/\{[^{}]*"islem"[^{}]*\}/g, '').replace(/\{[^{}]*"parametreler"[^{}]*\}/g, '').replace(/
-{3,}/g, '
-
-').trim();
-    if (temizCevap.length <= 2000) await message.reply(temizCevap);
+    if (cevap.length <= 2000) await message.reply(cevap);
     else { const p = cevap.match(/.{1,2000}/gs) || []; for (const x of p) await message.channel.send(x); }
   }
 };
