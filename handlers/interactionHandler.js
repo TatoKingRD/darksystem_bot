@@ -167,12 +167,8 @@ module.exports = async function interactionHandler(client, interaction) {
           .setPlaceholder('Örnek: 18').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(3)
       ),
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('ign').setLabel('IGN — Oyun Kullanıcı Adı (Opsiyonel)')
-          .setPlaceholder('MLBB nickini gir ya da boş bırak').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('oyunId').setLabel('⚠️ Oyun ID — ID YOK = ÖDÜL YOK!')
-          .setPlaceholder('Örnek: 123456789 (1234)').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(32)
+        new TextInputBuilder().setCustomId('ign').setLabel('Nickin (Opsiyonel)')
+          .setPlaceholder('Sunucuda kullanmak istediğin isim').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder().setCustomId('nereden').setLabel('Bizi nereden duydun? (Opsiyonel)')
@@ -248,7 +244,7 @@ module.exports = async function interactionHandler(client, interaction) {
     const isim = interaction.fields.getTextInputValue('isim');
     const yas = interaction.fields.getTextInputValue('yas');
     const ign = interaction.fields.getTextInputValue('ign') || null;
-    const oyunId = interaction.fields.getTextInputValue('oyunId') || null;
+    const oyunId = null;
     const neredenDuydun = interaction.fields.getTextInputValue('nereden') || null;
     const yasNum = parseInt(yas);
 
@@ -296,8 +292,7 @@ module.exports = async function interactionHandler(client, interaction) {
       const kayitFields = [
         { name: '👤 İsim', value: isim, inline: true },
         { name: '🎂 Yaş', value: `${yasNum}`, inline: true },
-        { name: '🎮 IGN', value: ign || 'Belirtilmedi', inline: true },
-        { name: '🎯 Oyun ID', value: oyunId || 'Belirtilmedi', inline: true },
+        { name: '🎮 Nick', value: ign || 'Belirtilmedi', inline: true },
         { name: '📣 Nereden Duydun?', value: neredenDuydun || 'Belirtilmedi', inline: true },
         { name: '🆔 Discord', value: `<@${member.id}> (${member.user.tag})`, inline: false },
         { name: '📅 Tarih', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
@@ -322,7 +317,7 @@ module.exports = async function interactionHandler(client, interaction) {
           `Merhaba **${isim}**! Artık ailemizin bir parçasısın. 🙌\n\n` +
           `🏆 **Haftalık Turnuva**\nHer **Cumartesi saat 20:00**'de ödüllü turnuvamız var!\n\n` +
           `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et!\n\n` +
-          (!oyunId ? `⚠️ **Oyun ID Girilmedi!**\nÖdül almak için Oyun ID'ni girmen gerekiyor. Yönetici ile iletişime geç!\n\n` : '') +
+
           `İyi oyunlar! 🎮`
         )
         .setColor(0x5865F2).setFooter({ text: 'Kayıt Sistemi' }).setTimestamp()]
@@ -330,7 +325,7 @@ module.exports = async function interactionHandler(client, interaction) {
 
       await interaction.editReply({
         content: `✅ **Kayıt başarılı!** Hoş geldin, **${isim}**! 🎉` +
-          (!oyunId ? '\n\n⚠️ **Oyun ID girmedin!** Ödül almak için yöneticiye ulaş.' : '')
+
       });
     } catch (err) {
       console.error('Kayıt hatası:', err);
