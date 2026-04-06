@@ -139,6 +139,7 @@ cevabını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 - rol_al: {"kullanici_id": "id", "rol_adi": "rol adı"}
 - uye_ban: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
 - uye_kick: {"kullanici_id": "id veya mention", "sebep": "sebep (opsiyonel)"}
+- uye_sustur: {"kullanici_id": "id veya mention", "sure": "60s/5m/10m/1h/1g/1w", "sebep": "sebep (opsiyonel)"}
 - kanal_listele: {}
 - kanal_temizle: {} (tüm kanalların başındaki özel karakterleri/emojileri kaldırır)
 - kanal_emoji_ekle: {} (tüm kanallara adlarına uygun emoji ekler)
@@ -290,6 +291,19 @@ async function islemUygula(interaction, islem, guild) {
           .map(c => `📢 #${c.name}`)
           .join('\n');
         return `**Sunucudaki kanallar:**\n${kanallar || 'Kanal bulunamadı.'}`;
+      }
+      case 'uye_sustur': {
+        const susturId = islem.parametreler.kullanici_id.replace(/[<@!>]/g, '');
+        const susturUye = await guild.members.fetch(susturId).catch(() => null);
+        if (!susturUye) return '❌ Kullanıcı bulunamadı.';
+        const sureMsMap = { '60s': 60000, '5m': 300000, '10m': 600000, '1h': 3600000, '1g': 86400000, '1w': 604800000 };
+        const sureLabelMap = { '60s': '60 Saniye', '5m': '5 Dakika', '10m': '10 Dakika', '1h': '1 Saat', '1g': '1 Gün', '1w': '1 Hafta' };
+        const sureKey = islem.parametreler.sure || '10m';
+        const sureMs = sureMsMap[sureKey] || 600000;
+        const sureLabel = sureLabelMap[sureKey] || '10 Dakika';
+        const susturSebep = islem.parametreler.sebep || 'Sebep belirtilmedi';
+        await susturUye.timeout(sureMs, susturSebep);
+        return `✅ **${susturUye.user.tag}** ${sureLabel} susturuldu. Sebep: ${susturSebep}`;
       }
       case 'uye_ban': {
         // Mention formatını temizle
