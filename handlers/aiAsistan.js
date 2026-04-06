@@ -367,9 +367,13 @@ async function gecmisiKanalaKaydet(client, userId, gecmis) {
 
 const SISTEM_MESAJI = `Sen MLBB TR Discord sunucusunun yapay zeka asistanısın. Adın "DARKSYSTEM".
 Türkçe konuş. Kısa ve net cevaplar ver.
-Kullanıcı bir Discord işlemi yapmak istiyorsa uygun aracı (tool) çağır.
-Sadece sohbet ediyorsa normal cevap ver, araç çağırma.
-Bilmediğini uydurma.`;
+
+ARAÇ KULLANIM KURALLARI:
+- Araçları SADECE kullanıcı açıkça bir Discord işlemi yapmamı istediğinde kullan.
+- Araç kullan: "log kanalını sil", "genel kanalının adını değiştir", "@kullanıcı banla"
+- Araç kullanma: "neler yapabilirsin", "sunucuyu geliştir", "merhaba", "nasılsın"
+- Soru veya sohbet mesajlarına düz Türkçe cevap ver, araç çağırma!
+- Emin değilsen araç çağırma.`;
 
 // ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
 const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle'];
