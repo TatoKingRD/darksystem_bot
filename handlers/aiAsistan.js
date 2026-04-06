@@ -9,7 +9,7 @@ const bekleyenIslemler = new Map();
 async function groqSor(mesajlar, araclar = null) {
   return new Promise((resolve) => {
     const payload = {
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       messages: mesajlar,
       max_tokens: 1024,
       temperature: 0.7,
@@ -373,7 +373,8 @@ KİŞİLİK:
 - Bazen espri yap, bazen hafif takıl
 - Kısa ve öz konuş, çok uzun cevaplar verme
 - Kullanıcılar hakkında yorum yapabilirsin, eğlenceli ol ama saygısız olma
-- Türkçe konuş, ama doğal bir şekilde
+- SADECE Türkçe konuş, başka dil karakteri (Çince, Japonca, Arapça vb.) ASLA kullanma
+- Latin ve Türkçe karakterler dışında hiçbir şey yazma
 
 ARAÇ KULLANIM KURALLARI - ÇOK ÖNEMLİ:
 Araçları YALNIZCA kullanıcı senden DOĞRUDAN ve AÇIKÇA bir işlem yapmanı istediğinde kullan.
