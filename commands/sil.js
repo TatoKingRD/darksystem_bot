@@ -1,15 +1,14 @@
 // commands/sil.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 
 const data = new SlashCommandBuilder()
   .setName('sil')
   .setDescription('Kanaldaki mesajları siler [Yetkili]')
   .addIntegerOption(opt => opt
     .setName('sayi')
-    .setDescription('Kaç mesaj silinsin? (1-100)')
+    .setDescription('Kaç mesaj silinsin?')
     .setRequired(true)
     .setMinValue(1)
-    .setMaxValue(100)
   );
 
 async function execute(interaction) {
@@ -21,14 +20,37 @@ async function execute(interaction) {
   if (!yetkili) return interaction.reply({ content: '❌ Bu komutu kullanma yetkin yok.', ephemeral: true });
 
   const sayi = interaction.options.getInteger('sayi');
-
   await interaction.deferReply({ ephemeral: true });
 
-  const silinen = await interaction.channel.bulkDelete(sayi, true).catch(() => null);
+  let silinenSayisi = 0;
+  let kalan = sayi;
 
-  if (!silinen) return interaction.editReply({ content: '❌ Mesajlar silinemedi. Botun yeterli yetkisi var mı?' });
+  while (kalan > 0) {
+    const alinacak = Math.min(kalan, 100);
+    const mesajlar = await interaction.channel.messages.fetch({ limit: alinacak }).catch(() => null);
+    if (!mesajlar || mesajlar.size === 0) break;
 
-  await interaction.editReply({ content: `✅ **${silinen.size}** mesaj silindi.` });
+    // 14 günden yeni olanları toplu sil
+    const yeni = mesajlar.filter(m => Date.now() - m.createdTimestamp < 14 * 24 * 60 * 60 * 1000);
+    const eski = mesajlar.filter(m => Date.now() - m.createdTimestamp >= 14 * 24 * 60 * 60 * 1000);
+
+    if (yeni.size > 0) {
+      const silinen = await interaction.channel.bulkDelete(yeni, true).catch(() => null);
+      if (silinen) silinenSayisi += silinen.size;
+    }
+
+    // Eski mesajları tek tek sil
+    for (const [, msg] of eski) {
+      await msg.delete().catch(() => {});
+      silinenSayisi++;
+      await new Promise(r => setTimeout(r, 300)); // rate limit için bekle
+    }
+
+    kalan -= mesajlar.size;
+    if (mesajlar.size < alinacak) break;
+  }
+
+  await interaction.editReply({ content: `✅ **${silinenSayisi}** mesaj silindi.` });
 }
 
 module.exports = { data, execute };
