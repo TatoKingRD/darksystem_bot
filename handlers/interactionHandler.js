@@ -315,10 +315,8 @@ module.exports = async function interactionHandler(client, interaction) {
         .setTitle('🎉 Sunucumuza Hoş Geldin!')
         .setDescription(
           `Merhaba **${isim}**! Artık ailemizin bir parçasısın. 🙌\n\n` +
-          `🏆 **Haftalık Turnuva**\nHer **Cumartesi saat 20:00**'de ödüllü turnuvamız var!\n\n` +
-          `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et!\n\n` +
-
-          `İyi oyunlar! 🎮`
+          `💬 **Sohbet & Eğlence**\nKanallarımızda özgürce sohbet et, yeni arkadaşlar edin!\n\n` +
+          `İyi eğlenceler! 🎮`
         )
         .setColor(0x5865F2).setFooter({ text: 'Kayıt Sistemi' }).setTimestamp()]
       }).catch(() => {});
