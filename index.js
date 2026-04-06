@@ -36,9 +36,27 @@ for (const cmd of commandModules) {
   allCommandData.push(cmd.data.toJSON());
 }
 
+// Cooldown sistemi
+const cooldowns = new Map();
+const COOLDOWN_SURE = 3000; // 3 saniye
+
 // Interaction handler
 const interactionHandler = require('./handlers/interactionHandler');
-client.on('interactionCreate', (interaction) => interactionHandler(client, interaction));
+client.on('interactionCreate', (interaction) => {
+  if (!interaction.isChatInputCommand()) return interactionHandler(client, interaction);
+
+  const userId = interaction.user.id;
+  const simdi = Date.now();
+  const sonKullanim = cooldowns.get(userId) || 0;
+
+  if (simdi - sonKullanim < COOLDOWN_SURE) {
+    const kalanSn = ((COOLDOWN_SURE - (simdi - sonKullanim)) / 1000).toFixed(1);
+    return interaction.reply({ content: `⏳ Çok hızlı! **${kalanSn}** saniye bekle.`, ephemeral: true });
+  }
+
+  cooldowns.set(userId, simdi);
+  interactionHandler(client, interaction);
+});
 
 // Kelime oyunu handler
 const kelimeOyunu = require('./handlers/kelimeOyunu');
