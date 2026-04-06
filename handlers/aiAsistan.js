@@ -373,7 +373,9 @@ ARAÇ KULLANIM KURALLARI:
 - Araç kullan: "log kanalını sil", "genel kanalının adını değiştir", "@kullanıcı banla"
 - Araç kullanma: "neler yapabilirsin", "sunucuyu geliştir", "merhaba", "nasılsın"
 - Soru veya sohbet mesajlarına düz Türkçe cevap ver, araç çağırma!
-- Emin değilsen araç çağırma.`;
+- Emin değilsen araç çağırma.
+- ASLA cevabında JSON formatı, kod bloğu veya teknik araç listesi gösterme.
+- Yapabileceklerini soran birine sadece düz Türkçe madde madde anlat.`;
 
 // ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
 const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle'];
@@ -453,7 +455,12 @@ module.exports = async function aiAsistan(message, client) {
     if (gecmis.length > 20) gecmis.splice(0, 2);
     konusmaTarihi.set(message.author.id, gecmis);
     gecmisiKanalaKaydet(client, message.author.id, gecmis).catch(() => {});
-    if (cevap.length <= 2000) await message.reply(cevap);
+    // JSON bloklarını temizle
+    const temizCevap = cevap.replace(/\{[^{}]*"islem"[^{}]*\}/g, '').replace(/\{[^{}]*"parametreler"[^{}]*\}/g, '').replace(/
+{3,}/g, '
+
+').trim();
+    if (temizCevap.length <= 2000) await message.reply(temizCevap);
     else { const p = cevap.match(/.{1,2000}/gs) || []; for (const x of p) await message.channel.send(x); }
   }
 };
