@@ -155,6 +155,13 @@ const komutDetaylari = {
     ],
     renk: 0x5865F2,
   },
+  sil: {
+    baslik: '🗑️ /sil — Mesaj Sil',
+    aciklama: 'Kanaldaki mesajları siler. Eski mesajları da tek tek siler.',
+    kullanim: '`/sil sayi:50`',
+    parametreler: ['**sayi** — Kaç mesaj silinsin'],
+    renk: 0xFF0000,
+  },
   tekrarla: {
     baslik: '🔁 /tekrarla — Hatırlatma',
     aciklama: 'Belirli aralıklarla hatırlatma mesajı gönderir. Bot kapansa bile devam eder.',
@@ -193,7 +200,7 @@ const kategoriler = {
     renk: 0xE74C3C,
     baslik: '🛡️ Moderasyon',
     aciklama: 'Moderasyon komutları (Yetkili):',
-    komutlar: ['uyar', 'uyarilar', 'sustur', 'sustursil', 'anket', 'tekrarla'],
+    komutlar: ['uyar', 'uyarilar', 'sustur', 'sustursil', 'anket', 'tekrarla', 'sil'],
     yetkiliGerekli: true,
   },
 };
