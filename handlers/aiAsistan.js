@@ -444,7 +444,8 @@ ARAÇ KULLANMA:
 
 ÖNEMLİ: Kanalları düzenleme veya kategorilere yerleştirme isteklerinde ASLA kanal_sil kullanma. Bunun için kanal_kategori_duzenle aracını kullan.
 
-ASLA cevabında JSON veya teknik araç listesi gösterme.`;
+ASLA cevabında JSON veya teknik araç listesi gösterme.
+ASLA cevabında <function=...> veya </function> gibi tag'ler yazma. Araçları sadece tool_call mekanizmasıyla çağır, metin olarak ASLA yazma.`;
 
 // ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
 const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle', 'kanal_kategori_duzenle'];
@@ -516,43 +517,46 @@ module.exports = async function aiAsistan(message, client) {
     bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
     setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
 
-  } else {
+    } else {
+
     // Normal cevap
     const cevap = secim.message?.content || '❌ Cevap alınamadı.';
 
-        // Modelin function tag'i duz metin olarak sizdirmasi durumu (fallback)
-    // SADECE cevabın tamamı bir function tag ise yakala, karışık metin+tag ise görmezden gel
-    const funcMatch = cevap.match(/^\s*<function=(\w+)>(.*?)<\/function>\s*$/s);
-    if (funcMatch) {
-      const islemAdi = funcMatch[1];
-      let parametreler = {};
-      try { parametreler = JSON.parse(funcMatch[2] || '{}'); } catch {}
-
+    // Modelin function tag'i duz metin olarak sizdirmasi durumu (fallback)
+    // Metin içinde bir veya birden fazla <function=...> tag'i varsa hepsini yakala
+    const funcMatches = [...cevap.matchAll(/<function=(\w+)>(.*?)<\/function>/gs)];
+    if (funcMatches.length > 0) {
       if (!islemYetkisi) {
-        return message.reply('❌ Sunucu islemlerini sadece sunucu sahibi yaptirabilir.');
+        return message.reply('❌ Sunucu işlemlerini sadece sunucu sahibi yaptırabilir.');
       }
 
-      if (ONAYSIZ.includes(islemAdi)) {
-        const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild);
-        return message.reply(sonucMesaj);
+      for (const match of funcMatches) {
+        const islemAdi = match[1];
+        let parametreler = {};
+        try { parametreler = JSON.parse(match[2] || '{}'); } catch {}
+
+        if (ONAYSIZ.includes(islemAdi)) {
+          const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild);
+          await message.reply(sonucMesaj);
+        } else {
+          const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
+          const embed = new EmbedBuilder()
+            .setTitle('🤔 İşlem Onayı')
+            .setColor(0xF39C12)
+            .setDescription(`**${islemAdi.replace(/_/g, ' ').toUpperCase()}**\n\n${aciklama}`)
+            .setFooter({ text: 'Onaylıyor musun?' });
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('ai_onayla').setLabel('✅ Onayla').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('ai_degistir').setLabel('✏️ Değiştir').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('ai_reddet').setLabel('❌ Reddet').setStyle(ButtonStyle.Danger),
+          );
+
+          const onayMesaj = await message.reply({ embeds: [embed], components: [row] });
+          bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
+          setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
+        }
       }
-
-      const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
-      const embed = new EmbedBuilder()
-        .setTitle('🤔 Islem Onayi')
-        .setColor(0xF39C12)
-        .setDescription(`**${islemAdi.replace(/_/g, ' ').toUpperCase()}**\n\n${aciklama}`)
-        .setFooter({ text: 'Onayliyor musun?' });
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('ai_onayla').setLabel('✅ Onayla').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('ai_degistir').setLabel('✏️ Degistir').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('ai_reddet').setLabel('❌ Reddet').setStyle(ButtonStyle.Danger),
-      );
-
-      const onayMesaj = await message.reply({ embeds: [embed], components: [row] });
-      bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
-      setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
       return;
     }
 
