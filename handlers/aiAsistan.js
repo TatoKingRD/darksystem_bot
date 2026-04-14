@@ -463,6 +463,42 @@ module.exports = async function aiAsistan(message, client) {
   } else {
     // Normal cevap
     const cevap = secim.message?.content || '❌ Cevap alınamadı.';
+
+    // Modelin function tag'i duz metin olarak sizdirmasi durumu (fallback)
+    const funcMatch = cevap.match(/<function=(\w+)>(.*?)<\/function>/s);
+    if (funcMatch) {
+      const islemAdi = funcMatch[1];
+      let parametreler = {};
+      try { parametreler = JSON.parse(funcMatch[2] || '{}'); } catch {}
+
+      if (!islemYetkisi) {
+        return message.reply('❌ Sunucu islemlerini sadece sunucu sahibi yaptirabilir.');
+      }
+
+      if (ONAYSIZ.includes(islemAdi)) {
+        const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild);
+        return message.reply(sonucMesaj);
+      }
+
+      const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
+      const embed = new EmbedBuilder()
+        .setTitle('🤔 Islem Onayi')
+        .setColor(0xF39C12)
+        .setDescription(`**${islemAdi.replace(/_/g, ' ').toUpperCase()}**\n\n${aciklama}`)
+        .setFooter({ text: 'Onayliyor musun?' });
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ai_onayla').setLabel('✅ Onayla').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('ai_degistir').setLabel('✏️ Degistir').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ai_reddet').setLabel('❌ Reddet').setStyle(ButtonStyle.Danger),
+      );
+
+      const onayMesaj = await message.reply({ embeds: [embed], components: [row] });
+      bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
+      setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
+      return;
+    }
+
     gecmis.push({ role: 'user', content: soru });
     gecmis.push({ role: 'assistant', content: cevap });
     if (gecmis.length > 20) gecmis.splice(0, 2);
