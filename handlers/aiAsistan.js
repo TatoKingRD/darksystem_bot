@@ -56,11 +56,11 @@ const ARACLAR = [
     type: 'function',
     function: {
       name: 'kanal_adi_degistir',
-      description: 'Bir kanalın adını değiştirir',
+      description: 'Bir kanalın adını değiştirir. Kullanıcı "bu kanalın adını X yap" diyorsa kanal_adi olarak mevcut kanal adını kullan.',
       parameters: {
         type: 'object',
         properties: {
-          kanal_adi: { type: 'string', description: 'Mevcut kanal adı' },
+          kanal_adi: { type: 'string', description: 'Mevcut kanal adı (kullanıcı "bu kanal" diyorsa sistem mesajındaki MEVCUT_KANAL değerini kullan)' },
           yeni_ad: { type: 'string', description: 'Yeni kanal adı' },
         },
         required: ['kanal_adi', 'yeni_ad'],
@@ -109,6 +109,20 @@ const ARACLAR = [
       name: 'kanal_temizle',
       description: 'Tüm kanalların başındaki özel karakter ve emojileri kaldırır',
       parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_tek_temizle',
+      description: 'Tek bir kanalın başındaki emoji veya özel karakterleri kaldırır. Kullanıcı "bu kanalın emojisini kaldır", "bu kanalı temizle" gibi bir şey diyorsa bunu kullan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kanal_adi: { type: 'string', description: 'Temizlenecek kanalın adı' },
+        },
+        required: ['kanal_adi'],
+      },
     },
   },
   {
@@ -261,6 +275,16 @@ async function islemUygula(islemAdi, parametreler, guild) {
           if (temiz && temiz !== k.name) { await k.setName(temiz).catch(() => {}); n++; }
         }
         return `✅ ${n} kanalın adı temizlendi.`;
+      }
+      case 'kanal_tek_temizle': {
+        const kanal = guild.channels.cache.find(c => c.name.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '') === parametreler.kanal_adi.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '') || c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase());
+        if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
+        const eskiAd = kanal.name;
+        const temiz = kanal.name.replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '').replace(/^-+|-+$/g, '').toLowerCase().trim();
+        if (!temiz) return `❌ Kanal adı tamamen boş kalırdı, işlem iptal.`;
+        if (temiz === kanal.name) return `ℹ️ **#${eskiAd}** zaten temiz, değiştirilecek bir şey yok.`;
+        await kanal.setName(temiz);
+        return `✅ **#${eskiAd}** → **#${temiz}** olarak temizlendi.`;
       }
       case 'kanal_emoji_ekle': {
         const kanallar = guild.channels.cache.filter(c => c.type === 0);
@@ -448,7 +472,7 @@ ASLA cevabında JSON veya teknik araç listesi gösterme.
 ASLA cevabında <function=...> veya </function> gibi tag'ler yazma. Araçları sadece tool_call mekanizmasıyla çağır, metin olarak ASLA yazma.`;
 
 // ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
-const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle', 'kanal_kategori_duzenle'];
+const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_tek_temizle', 'kanal_emoji_ekle', 'kanal_kategori_duzenle'];
 
 module.exports = async function aiAsistan(message, client) {
   if (message.author.bot) return;
@@ -471,7 +495,7 @@ module.exports = async function aiAsistan(message, client) {
   }
 
   const mesajlar = [
-    { role: 'system', content: SISTEM_MESAJI },
+    { role: 'system', content: SISTEM_MESAJI + `\n\nMEVCUT_KANAL: ${message.channel.name} (kullanıcı "bu kanal" veya "bu kanalın" diyorsa bu ismi kullan)` },
     ...gecmis,
     { role: 'user', content: soru }
   ];
@@ -517,8 +541,7 @@ module.exports = async function aiAsistan(message, client) {
     bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
     setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
 
-    } else {
-
+  } else {
     // Normal cevap
     const cevap = secim.message?.content || '❌ Cevap alınamadı.';
 
