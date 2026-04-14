@@ -195,6 +195,14 @@ const ARACLAR = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'kanal_kategori_duzenle',
+      description: 'Sunucudaki kanalları uygun kategorilere taşır ve düzenler. Kanalları kategorilere yerleştirme, sıralama veya düzenleme isteklerinde kullan.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
 ];
 
 // ─── İŞLEM UYGULAMA ───
@@ -308,6 +316,51 @@ async function islemUygula(islemAdi, parametreler, guild) {
         await uye.roles.remove(rol);
         return `✅ <@${uye.id}> kullanıcısından **${rol.name}** rolü alındı.`;
       }
+      case 'kanal_kategori_duzenle': {
+        const kategoriMap = {
+          '📢 BİLGİ': ['duyuru', 'kural', 'kurallar', 'hakkinda', 'hakkında', 'partner', 'davet', 'disboard'],
+          '💬 SOHBET': ['genel', 'sohbet', 'spam', 'itiraf', 'kendin', 'gorusuruz', 'görüşürüz'],
+          '🎮 OYUN': ['oyun', 'gaming', 'mlbb', 'anigame', 'aki', 'mudae', 'owo', 'takim', 'takım', 'turnuva', 'strateji', 'karakter'],
+          '🎵 MÜZİK': ['muzik', 'müzik'],
+          '🖼️ MEDYA': ['resim', 'video', 'wallpaper', 'icon', 'anime'],
+          '🛡️ YÖNETİM': ['log', 'kayit', 'kayıt', 'mod', 'yetkili', 'ticket', 'destek', 'sikayet', 'şikayet', 'oneri', 'öneri'],
+          '🌟 ÖZEL': ['boost', 'avantaj', 'cekilis', 'çekiliş', 'level', 'levels', 'rol', 'profil'],
+          '🤖 BOT': ['bot', 'komut', 'sayi', 'sayı', 'kelime', 'ship'],
+        };
+
+        let tasinan = 0;
+        let kategoriOlusturulan = 0;
+
+        for (const [kategoriAdi, anahtarlar] of Object.entries(kategoriMap)) {
+          // Kategori var mı bak, yoksa oluştur
+          let kategori = guild.channels.cache.find(c => c.type === 4 && c.name.toUpperCase() === kategoriAdi.toUpperCase());
+          let kategoriOlusturuldu = false;
+
+          const eslesmeler = guild.channels.cache.filter(c => {
+            if (c.type !== 0) return false;
+            const ad = c.name.toLowerCase();
+            return anahtarlar.some(k => ad.includes(k));
+          });
+
+          if (eslesmeler.size === 0) continue;
+
+          if (!kategori) {
+            kategori = await guild.channels.create({ name: kategoriAdi, type: 4 }).catch(() => null);
+            if (kategori) { kategoriOlusturulan++; kategoriOlusturuldu = true; }
+          }
+
+          if (!kategori) continue;
+
+          for (const [, kanal] of eslesmeler) {
+            if (kanal.parentId !== kategori.id) {
+              await kanal.setParent(kategori.id, { lockPermissions: false }).catch(() => {});
+              tasinan++;
+            }
+          }
+        }
+
+        return `✅ ${tasinan} kanal kategorilere taşındı${kategoriOlusturulan > 0 ? `, ${kategoriOlusturulan} yeni kategori oluşturuldu` : ''}.`;
+      }
       default:
         return '❌ Bilinmeyen işlem.';
     }
@@ -380,18 +433,21 @@ ARAÇ KULLANIM KURALLARI - ÇOK ÖNEMLİ:
 Araçları YALNIZCA kullanıcı senden DOĞRUDAN ve AÇIKÇA bir işlem yapmanı istediğinde kullan.
 
 ARAÇ KULLAN:
-- "log kanalını sil" → sil
-- "genel kanalının adını oyun yap" → değiştir
-- "@Ali'yi banla" → banla
+- "log kanalını sil" → kanal_sil
+- "genel kanalının adını oyun yap" → kanal_adi_degistir
+- "@Ali'yi banla" → uye_ban
+- "kanalları kategorilere yerleştir" veya "kanalları düzenle" → kanal_kategori_duzenle
 
 ARAÇ KULLANMA:
 - Soru işareti varsa, "örnek olarak", "mesela", "acaba", "yapabilir misin" varsa → sadece cevap ver
 - Sohbet, espri, yorum isteklerinde → normal konuş
 
+ÖNEMLİ: Kanalları düzenleme veya kategorilere yerleştirme isteklerinde ASLA kanal_sil kullanma. Bunun için kanal_kategori_duzenle aracını kullan.
+
 ASLA cevabında JSON veya teknik araç listesi gösterme.`;
 
 // ─── ONAY GEREKTİRMEYEN İŞLEMLER ───
-const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle'];
+const ONAYSIZ = ['kanal_listele', 'kanal_temizle', 'kanal_emoji_ekle', 'kanal_kategori_duzenle'];
 
 module.exports = async function aiAsistan(message, client) {
   if (message.author.bot) return;
@@ -465,49 +521,5 @@ module.exports = async function aiAsistan(message, client) {
     const cevap = secim.message?.content || '❌ Cevap alınamadı.';
 
     // Modelin function tag'i duz metin olarak sizdirmasi durumu (fallback)
-    const funcMatch = cevap.match(/<function=(\w+)>(.*?)<\/function>/s);
-    if (funcMatch) {
-      const islemAdi = funcMatch[1];
-      let parametreler = {};
-      try { parametreler = JSON.parse(funcMatch[2] || '{}'); } catch {}
-
-      if (!islemYetkisi) {
-        return message.reply('❌ Sunucu islemlerini sadece sunucu sahibi yaptirabilir.');
-      }
-
-      if (ONAYSIZ.includes(islemAdi)) {
-        const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild);
-        return message.reply(sonucMesaj);
-      }
-
-      const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
-      const embed = new EmbedBuilder()
-        .setTitle('🤔 Islem Onayi')
-        .setColor(0xF39C12)
-        .setDescription(`**${islemAdi.replace(/_/g, ' ').toUpperCase()}**\n\n${aciklama}`)
-        .setFooter({ text: 'Onayliyor musun?' });
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('ai_onayla').setLabel('✅ Onayla').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('ai_degistir').setLabel('✏️ Degistir').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('ai_reddet').setLabel('❌ Reddet').setStyle(ButtonStyle.Danger),
-      );
-
-      const onayMesaj = await message.reply({ embeds: [embed], components: [row] });
-      bekleyenIslemler.set(onayMesaj.id, { islemAdi, parametreler, guild: message.guild, authorId: message.author.id });
-      setTimeout(() => { bekleyenIslemler.delete(onayMesaj.id); onayMesaj.edit({ components: [] }).catch(() => {}); }, 60000);
-      return;
-    }
-
-    gecmis.push({ role: 'user', content: soru });
-    gecmis.push({ role: 'assistant', content: cevap });
-    if (gecmis.length > 20) gecmis.splice(0, 2);
-    konusmaTarihi.set(message.author.id, gecmis);
-    gecmisiKanalaKaydet(client, message.author.id, gecmis).catch(() => {});
-    if (cevap.length <= 2000) await message.reply(cevap);
-    else { const p = cevap.match(/.{1,2000}/gs) || []; for (const x of p) await message.channel.send(x); }
-  }
-};
-
-module.exports.bekleyenIslemler = bekleyenIslemler;
-module.exports.islemUygula = islemUygula;
+    // SADECE cevabın tamamı bir function tag ise yakala, karışık metin+tag ise görmezden gel
+    const funcMatch = cevap.match(/^\
