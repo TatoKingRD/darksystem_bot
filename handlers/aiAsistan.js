@@ -9,7 +9,7 @@ const bekleyenIslemler = new Map();
 async function groqSor(mesajlar, araclar = null) {
   return new Promise((resolve) => {
     const payload = {
-      model: 'llama3-groq-70b-8192-tool-use-preview',
+      model: 'llama-3.3-70b-versatile',
       messages: mesajlar,
       max_tokens: 1024,
       temperature: 0.7,
