@@ -40,12 +40,12 @@ function kanalBul(guild, aranan) {
 // Hava durumu API (wttr.in - ücretsiz, key gerektirmez)
 async function havaDurumuGetir(sehir) {
   return new Promise((resolve) => {
-    const url = `/v2j?${encodeURIComponent(sehir)}`;
+    const url = `/${encodeURIComponent(sehir)}?format=j1`;
     const options = {
       hostname: 'wttr.in',
       path: url,
       method: 'GET',
-      headers: { 'User-Agent': 'curl/7.68.0' },
+      headers: { 'User-Agent': 'curl/7.68.0', 'Accept-Language': 'tr' },
     };
     const req = https.request(options, (res) => {
       let data = '';
@@ -54,14 +54,14 @@ async function havaDurumuGetir(sehir) {
         try {
           const json = JSON.parse(data);
           const bugun = json.weather?.[0];
-          const anlık = json.current_condition?.[0];
-          if (!bugun || !anlık) return resolve(null);
+          const anlik = json.current_condition?.[0];
+          if (!bugun || !anlik) return resolve(null);
           resolve({
-            sicaklik: anlık.temp_C,
-            hissedilen: anlık.FeelsLikeC,
-            durum: anlık.lang_tr?.[0]?.value || anlık.weatherDesc?.[0]?.value || '?',
-            nem: anlık.humidity,
-            ruzgar: anlık.windspeedKmph,
+            sicaklik: anlik.temp_C,
+            hissedilen: anlik.FeelsLikeC,
+            durum: anlik.lang_tr?.[0]?.value || anlik.weatherDesc?.[0]?.value || '?',
+            nem: anlik.humidity,
+            ruzgar: anlik.windspeedKmph,
             maxSicaklik: bugun.maxtempC,
             minSicaklik: bugun.mintempC,
           });
@@ -409,23 +409,4 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
 
         return `✅ **#${kanal.name}** kanalında **${sure} dakika** sürecek çekiliş başlatıldı! Ödül: **${parametreler.odul}**`;
       }
-      case 'hava_durumu': {
-        const veri = await havaDurumuGetir(parametreler.sehir);
-        if (!veri) return `❌ "${parametreler.sehir}" için hava durumu alınamadı.`;
-        return `🌤️ **${parametreler.sehir} Hava Durumu**\n` +
-          `• Durum: **${veri.durum}**\n` +
-          `• Sıcaklık: **${veri.sicaklik}°C** (Hissedilen: ${veri.hissedilen}°C)\n` +
-          `• Min/Max: **${veri.minSicaklik}°C / ${veri.maxSicaklik}°C**\n` +
-          `• Nem: **%${veri.nem}**\n` +
-          `• Rüzgar: **${veri.ruzgar} km/h**`;
-      }
-
-      default:
-        return '❌ Bilinmeyen işlem.';
-    }
-  } catch (err) {
-    return `❌ Hata: ${err.message}`;
-  }
-}
-
-module.exports = { islemUygula };
+      case 'h
