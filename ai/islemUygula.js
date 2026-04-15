@@ -22,11 +22,23 @@ const emojiMap = {
 const sureMsMap = { '60s': 60000, '5m': 300000, '10m': 600000, '1h': 3600000, '1g': 86400000, '1w': 604800000 };
 const sureLabelMap = { '60s': '60 Saniye', '5m': '5 Dakika', '10m': '10 Dakika', '1h': '1 Saat', '1g': '1 Gün', '1w': '1 Hafta' };
 
+// Emoji ve özel karakterleri soyarak kanal ara
+function kanalBul(guild, aranan) {
+  const temizle = str => str.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '').replace(/^-+|-+$/g, '');
+  const arananTemiz = temizle(aranan);
+  return guild.channels.cache.find(c =>
+    c.type === 0 && (
+      c.name.toLowerCase() === aranan.toLowerCase() ||
+      temizle(c.name) === arananTemiz
+    )
+  );
+}
+
 async function islemUygula(islemAdi, parametreler, guild) {
   try {
     switch (islemAdi) {
       case 'kanal_adi_degistir': {
-        const kanal = guild.channels.cache.find(c => c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase());
+        const kanal = kanalBul(guild, parametreler.kanal_adi);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const eski = kanal.name;
         await kanal.setName(parametreler.yeni_ad);
@@ -37,7 +49,7 @@ async function islemUygula(islemAdi, parametreler, guild) {
         return `✅ **#${yeni.name}** kanalı oluşturuldu.`;
       }
       case 'kanal_sil': {
-        const kanal = guild.channels.cache.find(c => c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase());
+        const kanal = kanalBul(guild, parametreler.kanal_adi);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const ad = kanal.name;
         await kanal.delete();
@@ -61,10 +73,7 @@ async function islemUygula(islemAdi, parametreler, guild) {
         return `✅ ${n} kanalın adı temizlendi.`;
       }
       case 'kanal_tek_temizle': {
-        const kanal = guild.channels.cache.find(c =>
-          c.name.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '') === parametreler.kanal_adi.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '') ||
-          c.name.toLowerCase() === parametreler.kanal_adi.toLowerCase()
-        );
+        const kanal = kanalBul(guild, parametreler.kanal_adi);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const eskiAd = kanal.name;
         const temiz = kanal.name.replace(/[^a-z0-9\u00c0-\u024f\-]/gi, '').replace(/^-+|-+$/g, '').toLowerCase().trim();
