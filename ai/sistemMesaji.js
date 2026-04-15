@@ -19,6 +19,9 @@ ARAÇ KULLAN:
 - "genel kanalının adını oyun yap" → kanal_adi_degistir
 - "@Ali'yi banla" → uye_ban
 - "kanalları kategorilere yerleştir" veya "kanalları düzenle" → kanal_kategori_duzenle
+- "sohbet kanalının emojisini başa al", "sohbet kanalına emoji koy", "sohbet kanalındaki emojinin yerini değiştir" → kanal_adi_degistir (kanal_adi: mevcut kanal adı, yeni_ad: emoji + temiz isim şeklinde)
+- "tüm kanalların emojisini kaldır" → kanal_temizle
+- "bu kanalın emojisini kaldır" → kanal_tek_temizle
 
 ARAÇ KULLANMA:
 - Soru işareti varsa, "örnek olarak", "mesela", "acaba", "yapabilir misin" varsa → sadece cevap ver
