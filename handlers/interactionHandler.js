@@ -28,6 +28,7 @@ module.exports = async function interactionHandler(client, interaction) {
   // ─── AI ASISTAN ONAY BUTONLARI ───
   if (interaction.isButton() && ['ai_onayla', 'ai_degistir', 'ai_reddet'].includes(interaction.customId)) {
     const { bekleyenIslemler, islemUygula } = require('./aiAsistan');
+    const { gecmisiGetir, gecmisiGuncelle, gecmisiKanalaKaydet } = require('../ai/gecmis');
     const bekleyen = bekleyenIslemler.get(interaction.message.id);
 
     if (!bekleyen) return interaction.reply({ content: '❌ Bu işlem süresi doldu.', ephemeral: true });
@@ -50,6 +51,13 @@ module.exports = async function interactionHandler(client, interaction) {
       const sonuc = await islemUygula(bekleyen.islemAdi, bekleyen.parametreler, bekleyen.guild);
       bekleyenIslemler.delete(interaction.message.id);
       await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('📋 Sonuç').setDescription(sonuc).setColor(sonuc.startsWith('✅') ? 0x57F287 : 0xFF0000)] });
+
+      // Geçmişe ekle
+      const gecmis = await gecmisiGetir(client, interaction.user.id);
+      gecmis.push({ role: 'user', content: bekleyen.soru || bekleyen.islemAdi });
+      gecmis.push({ role: 'assistant', content: sonuc });
+      gecmisiGuncelle(interaction.user.id, gecmis);
+      gecmisiKanalaKaydet(client, interaction.user.id, gecmis).catch(() => {});
     }
   }
 
