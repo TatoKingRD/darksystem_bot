@@ -47,7 +47,8 @@ module.exports = async function interactionHandler(client, interaction) {
     }
 
     if (interaction.customId === 'ai_onayla') {
-      await interaction.update({ embeds: [new EmbedBuilder().setTitle('⏳ Uygulanıyor...').setColor(0x5865F2)], components: [] });
+      await interaction.deferUpdate();
+      await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('⏳ Uygulanıyor...').setColor(0x5865F2)], components: [] });
       const sonuc = await islemUygula(bekleyen.islemAdi, bekleyen.parametreler, bekleyen.guild);
       bekleyenIslemler.delete(interaction.message.id);
       await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('📋 Sonuç').setDescription(sonuc).setColor(sonuc.startsWith('✅') ? 0x57F287 : 0xFF0000)] });
