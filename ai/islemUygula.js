@@ -312,7 +312,8 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ **${eskiNick}** → **${parametreler.yeni_nick}** olarak değiştirildi.`;
       }
 
-      // ─── SUNUCU BİLGİ ───
+      
+              // ─── SUNUCU BİLGİ ───
       case 'sunucu_istatistik': {
         await guild.members.fetch();
         const toplamUye = guild.memberCount;
@@ -409,4 +410,23 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
 
         return `✅ **#${kanal.name}** kanalında **${sure} dakika** sürecek çekiliş başlatıldı! Ödül: **${parametreler.odul}**`;
       }
-      case 'h
+      case 'hava_durumu': {
+        const veri = await havaDurumuGetir(parametreler.sehir);
+        if (!veri) return `❌ "${parametreler.sehir}" için hava durumu alınamadı.`;
+        return `🌤️ **${parametreler.sehir} Hava Durumu**\n` +
+          `• Durum: **${veri.durum}**\n` +
+          `• Sıcaklık: **${veri.sicaklik}°C** (Hissedilen: ${veri.hissedilen}°C)\n` +
+          `• Min/Max: **${veri.minSicaklik}°C / ${veri.maxSicaklik}°C**\n` +
+          `• Nem: **%${veri.nem}**\n` +
+          `• Rüzgar: **${veri.ruzgar} km/h**`;
+      }
+
+      default:
+        return '❌ Bilinmeyen işlem.';
+    }
+  } catch (err) {
+    return `❌ Hata: ${err.message}`;
+  }
+}
+
+module.exports = { islemUygula };
