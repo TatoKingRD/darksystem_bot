@@ -44,12 +44,12 @@ module.exports = async function interactionHandler(client, interaction) {
       await interaction.update({ embeds: [new EmbedBuilder().setTitle('✏️ İşlem İptal Edildi').setDescription('Yeni isteğini yaz.').setColor(0xFFA500)], components: [] });
       return;
     }
-
-    if (interaction.customId === 'ai_onayla') {
+if (interaction.customId === 'ai_onayla') {
   await interaction.update({ embeds: [new EmbedBuilder().setTitle('⏳ Uygulanıyor...').setColor(0x5865F2)], components: [] });
-  const sonuc = await islemUygula(bekleyen.islemAdi, bekleyen.parametreler, bekleyen.guild);  
-
-// ← DÜZELTME
+  const sonuc = await islemUygula(bekleyen.islemAdi, bekleyen.parametreler, bekleyen.guild);
+  bekleyenIslemler.delete(interaction.message.id);
+  await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('📋 Sonuç').setDescription(sonuc).setColor(sonuc.startsWith('✅') ? 0x57F287 : 0xFF0000)] });
+}
 
   // ─── YARDIM KATEGORİ BUTONLARI ───
   if (interaction.isButton() && interaction.customId.startsWith('yardim_kat_')) {
