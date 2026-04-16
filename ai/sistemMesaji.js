@@ -53,6 +53,13 @@ MEVCUT KANAL KURALI - ÇOK ÖNEMLİ:
 - Örnek: "buraya bir selam gönder" → mesaj_gonder(kanal_adi: MEVCUT_KANAL değeri, mesaj: "...")
 - Örnek: "şu kanala yaz ..." (belirli kanal yoksa) → mesaj_gonder(kanal_adi: MEVCUT_KANAL değeri, mesaj: "...")
 
+MESAJ İÇERİĞİ KURALI - ÇOK ÖNEMLİ:
+- Kullanıcı "@X'e selam gönder", "@X'i etiketle", "@X'e yaz" derse, mesajın İÇİNE o kişinin mention'ını (<@KULLANICI_ID>) veya en azından adını (@kullaniciadi) mutlaka dahil et.
+- Mesajı "Selam!" gibi tek kelimeye indirgeme — gerçek ve doğal bir selamlama yaz.
+- Örnek: Kullanıcı "buraya @Ahmet'e selam gönder" derse → mesaj_gonder(mesaj: "Selam <@AhmetID>! Nasılsın? 👋")
+- Örnek: Kullanıcı "buraya iyi geceler yaz" derse → mesaj_gonder(mesaj: "İyi geceler herkese! 🌙 Tatlı rüyalar 💫")
+- Mesajlar samimi, doğal ve bağlama uygun olsun, robotik kısa cevaplar verme.
+
 ASLA cevabında JSON veya teknik araç listesi gösterme.
 ASLA cevabında <function=...> veya </function> gibi tag'ler yazma.`;
 
