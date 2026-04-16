@@ -38,7 +38,7 @@ function kanalBul(guild, aranan) {
 }
 
 // Hava durumu - Open-Meteo (ücretsiz, key gerektirmez, stabil)
-function httpsGetJson(hostname, path, timeoutMs = 8000) {
+function httpsGetJson(hostname, path, timeoutMs = 10000) {
   return new Promise((resolve) => {
     const req = https.request({
       hostname, path, method: 'GET',
@@ -47,12 +47,26 @@ function httpsGetJson(hostname, path, timeoutMs = 8000) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.error(`[hava:${hostname}] HTTP ${res.statusCode}:`, data.substring(0, 200));
+          return resolve(null);
+        }
         try { resolve(JSON.parse(data)); }
-        catch { resolve(null); }
+        catch (e) {
+          console.error(`[hava:${hostname}] JSON parse hatası:`, e.message, 'data:', data.substring(0, 200));
+          resolve(null);
+        }
       });
     });
-    req.on('error', () => resolve(null));
-    req.setTimeout(timeoutMs, () => { req.destroy(); resolve(null); });
+    req.on('error', (e) => {
+      console.error(`[hava:${hostname}] Bağlantı hatası:`, e.message);
+      resolve(null);
+    });
+    req.setTimeout(timeoutMs, () => {
+      console.error(`[hava:${hostname}] Timeout (${timeoutMs}ms)`);
+      req.destroy();
+      resolve(null);
+    });
     req.end();
   });
 }
@@ -73,18 +87,35 @@ const HAVA_DURUM_KODLARI = {
 };
 
 async function havaDurumuGetir(sehir) {
+  console.log(`[hava] Aranan sehir: "${sehir}"`);
+
   // 1. Şehir → koordinat
   const geoPath = `/v1/search?name=${encodeURIComponent(sehir)}&count=1&language=tr&format=json`;
   const geo = await httpsGetJson('geocoding-api.open-meteo.com', geoPath);
+  if (!geo) {
+    console.error(`[hava] Geocoding cevap vermedi.`);
+    return null;
+  }
   const konum = geo?.results?.[0];
-  if (!konum) return null;
+  if (!konum) {
+    console.error(`[hava] "${sehir}" icin konum bulunamadi. Gelen veri:`, JSON.stringify(geo).substring(0, 200));
+    return null;
+  }
+  console.log(`[hava] Konum bulundu: ${konum.name} (${konum.latitude}, ${konum.longitude})`);
 
   // 2. Koordinat → hava durumu
   const wPath = `/v1/forecast?latitude=${konum.latitude}&longitude=${konum.longitude}` +
     `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m` +
     `&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`;
   const w = await httpsGetJson('api.open-meteo.com', wPath);
-  if (!w?.current) return null;
+  if (!w) {
+    console.error(`[hava] Forecast API cevap vermedi.`);
+    return null;
+  }
+  if (!w.current) {
+    console.error(`[hava] Forecast'ta 'current' yok. Gelen:`, JSON.stringify(w).substring(0, 200));
+    return null;
+  }
 
   return {
     sehirAdi: konum.name + (konum.admin1 ? `, ${konum.admin1}` : ''),
@@ -370,8 +401,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ **${eskiNick}** → **${parametreler.yeni_nick}** olarak değiştirildi.`;
       }
 
-      
-              // ─── SUNUCU BİLGİ ───
+      // ─── SUNUCU BİLGİ ───
       case 'sunucu_istatistik': {
         await guild.members.fetch();
         const toplamUye = guild.memberCount;
