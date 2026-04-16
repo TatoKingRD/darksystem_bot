@@ -313,6 +313,30 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         }
         return `⚠️ **${uye.user.tag}** — toplam **${uyariSayisi}** uyarı kaydı bulundu.`;
       }
+      case 'kullanici_sure': {
+        // MEVCUT_KULLANICI ise mesajı yazan kişiyi al
+        let id = parametreler.kullanici_id;
+        if (!id || ['MEVCUT_KULLANICI', 'mevcut_kullanici', 'ben', 'BEN'].includes(id)) {
+          id = message?.author?.id;
+        }
+        id = String(id || '').replace(/[<@!>]/g, '');
+        if (!id) return '❌ Kullanıcı belirtilmedi.';
+        const uye = await guild.members.fetch(id).catch(() => null);
+        if (!uye) return '❌ Kullanıcı bulunamadı.';
+        const katilim = uye.joinedAt;
+        if (!katilim) return '❌ Katılım tarihi alınamadı.';
+        const simdi = new Date();
+        const fark = simdi - katilim;
+        const gun = Math.floor(fark / (1000 * 60 * 60 * 24));
+        const saat = Math.floor((fark % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const hesapGun = Math.floor((simdi - uye.user.createdAt) / (1000 * 60 * 60 * 24));
+        let rozet = '🌱 Çaylak';
+        if (gun >= 365) rozet = '👑 Veteran';
+        else if (gun >= 180) rozet = '🌟 Eski Üye';
+        else if (gun >= 90) rozet = '🔥 Aktif Üye';
+        else if (gun >= 30) rozet = '✨ Yeni Üye';
+        return `📅 **${uye.user.username}** — Sunucuda **${gun}** gün **${saat}** saat. Hesap yaşı: **${hesapGun}** gün. Rozet: ${rozet}`;
+      }
       case 'nick_degistir': {
         const id = parametreler.kullanici_id.replace(/[<@!>]/g, '');
         const uye = await guild.members.fetch(id).catch(() => null);
@@ -383,60 +407,4 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
       case 'cekilis_baslat': {
         const kanal = kanalBul(guild, parametreler.kanal_adi);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
-        const sure = Math.max(1, parametreler.sure_dakika || 1);
-        const bitis = Math.floor(Date.now() / 1000) + (sure * 60);
-        const embed = new EmbedBuilder()
-          .setTitle('🎁 ÇEKİLİŞ BAŞLADI!')
-          .setDescription(`**Ödül:** ${parametreler.odul}\n\n🎉 Katılmak için aşağıdaki butona tıkla!\n\n⏰ Bitiş: <t:${bitis}:R>`)
-          .setColor(0xF1C40F)
-          .setFooter({ text: `Süre: ${sure} dakika` })
-          .setTimestamp();
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`cekilis_katil_${Date.now()}`).setLabel('🎉 Katıl!').setStyle(ButtonStyle.Success),
-        );
-        const cekilisMsg = await kanal.send({ embeds: [embed], components: [row] });
-
-        // Süre bitince kazananı seç
-        setTimeout(async () => {
-          const guncelleMesaj = await kanal.messages.fetch(cekilisMsg.id).catch(() => null);
-          if (!guncelleMesaj) return;
-
-          // Butona basanları topla (reaction yerine collector kullanmak gerekir ama basit versiyon)
-          const katilimcilar = [];
-          // Mesaj reactions'dan değil, component interaction'dan tutulmuyor - basit versiyon
-          // Kazananı üye listesinden rastgele seç
-          await guild.members.fetch();
-          const uyeler = guild.members.cache.filter(m => !m.user.bot).map(m => m);
-          const kazanan = uyeler[Math.floor(Math.random() * uyeler.length)];
-
-          const sonucEmbed = new EmbedBuilder()
-            .setTitle('🎊 ÇEKİLİŞ SONA ERDİ!')
-            .setDescription(`**Ödül:** ${parametreler.odul}\n\n🏆 Kazanan: <@${kazanan.id}>\n\nTebrikler!`)
-            .setColor(0x2ECC71)
-            .setTimestamp();
-          await guncelleMesaj.edit({ embeds: [sonucEmbed], components: [] });
-          await kanal.send(`🎊 Tebrikler <@${kazanan.id}>! **${parametreler.odul}** ödülünü kazandın!`);
-        }, sure * 60 * 1000);
-
-        return `✅ **#${kanal.name}** kanalında **${sure} dakika** sürecek çekiliş başlatıldı! Ödül: **${parametreler.odul}**`;
-      }
-      case 'hava_durumu': {
-        const veri = await havaDurumuGetir(parametreler.sehir);
-        if (!veri) return `❌ "${parametreler.sehir}" için hava durumu alınamadı.`;
-        return `🌤️ **${parametreler.sehir} Hava Durumu**\n` +
-          `• Durum: **${veri.durum}**\n` +
-          `• Sıcaklık: **${veri.sicaklik}°C** (Hissedilen: ${veri.hissedilen}°C)\n` +
-          `• Min/Max: **${veri.minSicaklik}°C / ${veri.maxSicaklik}°C**\n` +
-          `• Nem: **%${veri.nem}**\n` +
-          `• Rüzgar: **${veri.ruzgar} km/h**`;
-      }
-
-      default:
-        return '❌ Bilinmeyen işlem.';
-    }
-  } catch (err) {
-    return `❌ Hata: ${err.message}`;
-  }
-}
-
-module.exports = { islemUygula };
+        const sure = Math.max(1, parametreler.sure_dakika || 1
