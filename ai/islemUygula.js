@@ -37,41 +37,65 @@ function kanalBul(guild, aranan) {
   );
 }
 
-// Hava durumu API (wttr.in - ücretsiz, key gerektirmez)
-async function havaDurumuGetir(sehir) {
+// Hava durumu - Open-Meteo (ücretsiz, key gerektirmez, stabil)
+function httpsGetJson(hostname, path, timeoutMs = 8000) {
   return new Promise((resolve) => {
-    const url = `/${encodeURIComponent(sehir)}?format=j1`;
-    const options = {
-      hostname: 'wttr.in',
-      path: url,
-      method: 'GET',
-      headers: { 'User-Agent': 'curl/7.68.0', 'Accept-Language': 'tr' },
-    };
-    const req = https.request(options, (res) => {
+    const req = https.request({
+      hostname, path, method: 'GET',
+      headers: { 'Accept': 'application/json', 'User-Agent': 'DarkSystemBot/1.0' },
+    }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          const bugun = json.weather?.[0];
-          const anlik = json.current_condition?.[0];
-          if (!bugun || !anlik) return resolve(null);
-          resolve({
-            sicaklik: anlik.temp_C,
-            hissedilen: anlik.FeelsLikeC,
-            durum: anlik.lang_tr?.[0]?.value || anlik.weatherDesc?.[0]?.value || '?',
-            nem: anlik.humidity,
-            ruzgar: anlik.windspeedKmph,
-            maxSicaklik: bugun.maxtempC,
-            minSicaklik: bugun.mintempC,
-          });
-        } catch { resolve(null); }
+        try { resolve(JSON.parse(data)); }
+        catch { resolve(null); }
       });
     });
     req.on('error', () => resolve(null));
-    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+    req.setTimeout(timeoutMs, () => { req.destroy(); resolve(null); });
     req.end();
   });
+}
+
+// WMO weather code → Türkçe açıklama
+const HAVA_DURUM_KODLARI = {
+  0: 'Açık', 1: 'Çoğunlukla açık', 2: 'Parçalı bulutlu', 3: 'Kapalı',
+  45: 'Sisli', 48: 'Kırağılı sis',
+  51: 'Hafif çisenti', 53: 'Çisenti', 55: 'Yoğun çisenti',
+  56: 'Hafif donan çisenti', 57: 'Yoğun donan çisenti',
+  61: 'Hafif yağmur', 63: 'Yağmur', 65: 'Şiddetli yağmur',
+  66: 'Hafif donan yağmur', 67: 'Şiddetli donan yağmur',
+  71: 'Hafif kar', 73: 'Kar', 75: 'Yoğun kar',
+  77: 'Kar taneleri',
+  80: 'Hafif sağanak', 81: 'Sağanak', 82: 'Şiddetli sağanak',
+  85: 'Hafif kar sağanağı', 86: 'Yoğun kar sağanağı',
+  95: 'Gök gürültülü fırtına', 96: 'Dolulu fırtına', 99: 'Şiddetli dolulu fırtına',
+};
+
+async function havaDurumuGetir(sehir) {
+  // 1. Şehir → koordinat
+  const geoPath = `/v1/search?name=${encodeURIComponent(sehir)}&count=1&language=tr&format=json`;
+  const geo = await httpsGetJson('geocoding-api.open-meteo.com', geoPath);
+  const konum = geo?.results?.[0];
+  if (!konum) return null;
+
+  // 2. Koordinat → hava durumu
+  const wPath = `/v1/forecast?latitude=${konum.latitude}&longitude=${konum.longitude}` +
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m` +
+    `&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`;
+  const w = await httpsGetJson('api.open-meteo.com', wPath);
+  if (!w?.current) return null;
+
+  return {
+    sehirAdi: konum.name + (konum.admin1 ? `, ${konum.admin1}` : ''),
+    sicaklik: Math.round(w.current.temperature_2m),
+    hissedilen: Math.round(w.current.apparent_temperature),
+    durum: HAVA_DURUM_KODLARI[w.current.weather_code] || 'Bilinmeyen',
+    nem: w.current.relative_humidity_2m,
+    ruzgar: Math.round(w.current.wind_speed_10m),
+    maxSicaklik: Math.round(w.daily?.temperature_2m_max?.[0] ?? w.current.temperature_2m),
+    minSicaklik: Math.round(w.daily?.temperature_2m_min?.[0] ?? w.current.temperature_2m),
+  };
 }
 
 async function islemUygula(islemAdi, parametreler, guild, message = null) {
@@ -447,7 +471,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
       case 'hava_durumu': {
         const veri = await havaDurumuGetir(parametreler.sehir);
         if (!veri) return `❌ "${parametreler.sehir}" için hava durumu alınamadı.`;
-        return `🌤️ **${parametreler.sehir} Hava Durumu**\n` +
+        return `🌤️ **${veri.sehirAdi} Hava Durumu**\n` +
           `• Durum: **${veri.durum}**\n` +
           `• Sıcaklık: **${veri.sicaklik}°C** (Hissedilen: ${veri.hissedilen}°C)\n` +
           `• Min/Max: **${veri.minSicaklik}°C / ${veri.maxSicaklik}°C**\n` +
