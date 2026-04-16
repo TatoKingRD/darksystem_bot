@@ -4,9 +4,9 @@ const https = require('https');
 async function groqSor(mesajlar, araclar = null) {
   return new Promise((resolve) => {
     const payload = {
-      // moonshotai/kimi-k2-instruct: tool calling'de çok iyi, talimatlara daha dikkatli
-      // Alternatifler: 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'
-      model: 'moonshotai/kimi-k2-instruct',
+      // openai/gpt-oss-120b: OpenAI'nin 120B açık model, tool calling ve talimatlara dikkatte çok iyi
+      // Alternatifler: 'openai/gpt-oss-20b' (daha hızlı), 'llama-3.3-70b-versatile' (eski)
+      model: 'openai/gpt-oss-120b',
       messages: mesajlar,
       max_tokens: 1024,
       temperature: 0.6,
