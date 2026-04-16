@@ -13,7 +13,18 @@ module.exports = async function aiAsistan(message, client) {
   if (message.author.bot) return;
   const botMention = `<@${client.user.id}>`;
   const botMentionNick = `<@!${client.user.id}>`;
-  if (!message.content.includes(botMention) && !message.content.includes(botMentionNick)) return;
+
+  // Kullanıcı bota reply atmış mı? (etiketleme şart değil)
+  let botaReply = false;
+  if (message.reference?.messageId) {
+    try {
+      const refMesaj = await message.channel.messages.fetch(message.reference.messageId);
+      if (refMesaj?.author?.id === client.user.id) botaReply = true;
+    } catch {}
+  }
+
+  const etiketliMi = message.content.includes(botMention) || message.content.includes(botMentionNick);
+  if (!etiketliMi && !botaReply) return;
 
   const soru = message.content.replace(botMention, '').replace(botMentionNick, '').trim();
   if (!soru) return message.reply('Merhaba! 👋 Nasıl yardımcı olabilirim?');
