@@ -4,10 +4,12 @@ const https = require('https');
 async function groqSor(mesajlar, araclar = null) {
   return new Promise((resolve) => {
     const payload = {
-      model: 'llama-3.3-70b-versatile',
+      // moonshotai/kimi-k2-instruct: tool calling'de çok iyi, talimatlara daha dikkatli
+      // Alternatifler: 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'
+      model: 'moonshotai/kimi-k2-instruct',
       messages: mesajlar,
       max_tokens: 1024,
-      temperature: 0.7,
+      temperature: 0.6,
     };
     if (araclar) {
       payload.tools = araclar;
