@@ -172,7 +172,17 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ ${tasinan} kanal kategorilere taşındı${kategoriOlusturulan > 0 ? `, ${kategoriOlusturulan} yeni kategori oluşturuldu` : ''}.`;
       }
       case 'mesaj_gonder': {
-        const kanal = kanalBul(guild, parametreler.kanal_adi);
+        // "buraya / bu kanal / dm / şuraya / current" gibi ifadeler gelirse direkt mevcut kanalı kullan
+        const buradaKelimeleri = ['buraya', 'bu kanal', 'bu kanala', 'burada', 'suraya', 'şuraya', 'su kanala', 'şu kanala', 'dm', 'current', 'mevcut', 'mevcut_kanal', 'mevcutkanal', 'here', 'this channel'];
+        const arananNorm = (parametreler.kanal_adi || '').toLowerCase().trim();
+        let kanal = null;
+        if (!parametreler.kanal_adi || buradaKelimeleri.includes(arananNorm)) {
+          kanal = message?.channel || null;
+        } else {
+          kanal = kanalBul(guild, parametreler.kanal_adi);
+        }
+        // Hâlâ bulunamadıysa ve mevcut kanal varsa ona düş
+        if (!kanal && message?.channel) kanal = message.channel;
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         if (parametreler.embed) {
           await kanal.send({ embeds: [new EmbedBuilder()
