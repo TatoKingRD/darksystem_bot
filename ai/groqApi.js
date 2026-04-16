@@ -1,12 +1,17 @@
 // ai/groqApi.js
 const https = require('https');
 
-async function groqSor(mesajlar, araclar = null) {
+// Model öncelik sırası - ilki başarısız olursa sırayla diğerleri denenir
+const MODELLER = [
+  'openai/gpt-oss-120b',       // Ana model (güçlü tool calling)
+  'llama-3.3-70b-versatile',   // Yedek 1 (stabil, hızlı)
+  'openai/gpt-oss-20b',        // Yedek 2 (daha küçük ama çok hızlı)
+];
+
+function tekSor(mesajlar, araclar, model) {
   return new Promise((resolve) => {
     const payload = {
-      // openai/gpt-oss-120b: OpenAI'nin 120B açık model, tool calling ve talimatlara dikkatte çok iyi
-      // Alternatifler: 'openai/gpt-oss-20b' (daha hızlı), 'llama-3.3-70b-versatile' (eski)
-      model: 'openai/gpt-oss-120b',
+      model,
       messages: mesajlar,
       max_tokens: 1024,
       temperature: 0.6,
@@ -32,16 +37,46 @@ async function groqSor(mesajlar, araclar = null) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { resolve(null); }
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) {
+            console.error(`[groq:${model}] API hatası:`, parsed.error.message || parsed.error);
+            return resolve(null);
+          }
+          if (!parsed.choices || !parsed.choices.length) {
+            console.error(`[groq:${model}] Boş cevap:`, data.substring(0, 200));
+            return resolve(null);
+          }
+          resolve(parsed);
+        } catch (e) {
+          console.error(`[groq:${model}] JSON parse hatası:`, e.message, 'data:', data.substring(0, 200));
+          resolve(null);
+        }
       });
     });
 
-    req.on('error', () => resolve(null));
-    req.setTimeout(15000, () => { req.destroy(); resolve(null); });
+    req.on('error', (e) => {
+      console.error(`[groq:${model}] Bağlantı hatası:`, e.message);
+      resolve(null);
+    });
+    req.setTimeout(30000, () => {
+      console.error(`[groq:${model}] Timeout (30s)`);
+      req.destroy();
+      resolve(null);
+    });
     req.write(body);
     req.end();
   });
+}
+
+async function groqSor(mesajlar, araclar = null) {
+  for (const model of MODELLER) {
+    const cevap = await tekSor(mesajlar, araclar, model);
+    if (cevap) return cevap;
+    console.warn(`[groq] ${model} cevap vermedi, bir sonraki modele geciliyor...`);
+  }
+  console.error('[groq] Tum modeller basarisiz oldu.');
+  return null;
 }
 
 module.exports = { groqSor };
