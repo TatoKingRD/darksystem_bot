@@ -247,6 +247,20 @@ const ARACLAR = [
   {
     type: 'function',
     function: {
+      name: 'kullanici_sure',
+      description: 'Bir kullanıcının sunucuda kaç gündür olduğunu ve hesap yaşını getirir. Kullanıcı "ben" veya kendinden bahsediyorsa kullanici_id olarak MEVCUT_KULLANICI değerini kullan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kullanici_id: { type: 'string', description: 'Kullanıcı ID veya mention. Kullanıcı kendinden bahsediyorsa MEVCUT_KULLANICI.' },
+        },
+        required: ['kullanici_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'nick_degistir',
       description: 'Bir kullanıcının sunucu nickini değiştirir',
       parameters: {
@@ -346,7 +360,7 @@ const ARACLAR = [
 const ONAYSIZ = [
   // Okuma / listeleme
   'kanal_listele', 'sunucu_istatistik', 'rol_listele', 'uye_listele',
-  'kullanici_bilgi', 'kullanici_uyarilari', 'hava_durumu',
+  'kullanici_bilgi', 'kullanici_uyarilari', 'kullanici_sure', 'hava_durumu',
   // Zararsız yazma
   'mesaj_gonder', 'mesaj_sabitle', 'kanal_yavasla',
   'kanal_olustur', 'kanal_temizle', 'kanal_tek_temizle',
