@@ -133,6 +133,24 @@ module.exports = async function aiAsistan(message, client) {
     sistemIcerik += `\nYANITLANAN_MESAJ_ID: ${yanitlananMesajId} (kullanıcı bir mesaja reply atmış; mesaj_id gereken komutlarda bu ID'yi kullanabilirsin)`;
   }
 
+  // ─── ANTI-TEKRAR: Son verilen cevabi sisteme bildir ───
+  // Son asistan cevabini al
+  const sonAsistanMesaji = [...gecmis].reverse().find(m => m.role === 'assistant');
+  if (sonAsistanMesaji?.content) {
+    sistemIcerik += `\n\nSON_CEVABIN: "${sonAsistanMesaji.content.substring(0, 300)}"\n` +
+      `KURAL: Yeni cevabın bu SON_CEVABIN ile neredeyse aynı olmamalı. Farklı kelimeler, farklı bir açı, farklı bir ton kullan. ` +
+      `Eğer aynı soru tekrar sorulduysa bunu da belirt ("yine mi?" gibi) ve farklı cevap üret.`;
+  }
+
+  // Benzer sorular tekrar soruluyorsa geçmişteki o soruyu bulup AI'ye hatırlat
+  const sonKullaniciSorulari = gecmis.filter(m => m.role === 'user').slice(-3);
+  const buSoruDahaOnceSoruldu = sonKullaniciSorulari.some(m =>
+    m.content && m.content.trim().toLowerCase() === soru.trim().toLowerCase()
+  );
+  if (buSoruDahaOnceSoruldu) {
+    sistemIcerik += `\n\nUYARI: Kullanıcı AYNI soruyu tekrar soruyor. Önceki cevabını tekrar etme, farklı bir yaklaşımla veya mizahi bir şekilde yanıtla.`;
+  }
+
   const mesajlar = [
     {
       role: 'system',
