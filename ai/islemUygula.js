@@ -401,7 +401,9 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ **${eskiNick}** → **${parametreler.yeni_nick}** olarak değiştirildi.`;
       }
 
-      // ─── SUNUCU BİLGİ ───
+      
+              
+              // ─── SUNUCU BİLGİ ───
       case 'sunucu_istatistik': {
         await guild.members.fetch();
         const toplamUye = guild.memberCount;
@@ -509,12 +511,160 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
           `• Rüzgar: **${veri.ruzgar} km/h**`;
       }
 
+      case 'slash_komut_calistir': {
+        return await slashKomutCalistir(parametreler, guild, message);
+      }
+
       default:
         return '❌ Bilinmeyen işlem.';
     }
   } catch (err) {
     return `❌ Hata: ${err.message}`;
   }
+}
+
+// ─── SLASH KOMUT CALISTIRICI ───
+// AI'nin çağırdığı slash komutu, sahte bir interaction ile çalıştırır
+const komutCache = new Map();
+
+function komutuBul(ad) {
+  if (komutCache.has(ad)) return komutCache.get(ad);
+  const fs = require('fs');
+  const path = require('path');
+  const klasor = path.join(__dirname, '..', 'commands');
+  const dosyalar = fs.readdirSync(klasor).filter(f => f.endsWith('.js'));
+  for (const dosya of dosyalar) {
+    try {
+      const modul = require(path.join(klasor, dosya));
+      if (modul.commands) {
+        for (const c of modul.commands) {
+          const json = c.data.toJSON ? c.data.toJSON() : c.data;
+          komutCache.set(json.name, c);
+        }
+      } else if (modul.data && modul.execute) {
+        const json = modul.data.toJSON ? modul.data.toJSON() : modul.data;
+        komutCache.set(json.name, modul);
+      }
+    } catch {}
+  }
+  return komutCache.get(ad);
+}
+
+async function slashKomutCalistir(params, guild, message) {
+  const ad = params.komut_adi;
+  const komut = komutuBul(ad);
+  if (!komut) return `❌ "${ad}" adında bir slash komutu bulunamadı.`;
+
+  const gelen = params.parametreler || {};
+  // MEVCUT_KULLANICI fallback
+  for (const k of Object.keys(gelen)) {
+    if (['MEVCUT_KULLANICI', 'mevcut_kullanici', 'ben', 'BEN'].includes(gelen[k])) {
+      gelen[k] = message?.author?.id;
+    }
+    // Mention formatini ID'ye cevir
+    if (typeof gelen[k] === 'string') {
+      const temiz = gelen[k].replace(/[<@!&#>]/g, '');
+      if (/^\d{17,20}$/.test(temiz)) gelen[k] = temiz;
+    }
+  }
+
+  // Komutun beklediği option şeması
+  const komutJson = komut.data.toJSON ? komut.data.toJSON() : komut.data;
+  const optTanim = komutJson.options || [];
+
+  // Sahte interaction
+  const sonuclar = [];
+  const sahteInteraction = {
+    user: message?.author,
+    member: message?.member,
+    guild,
+    channel: message?.channel,
+    client: message?.client,
+    guildId: guild?.id,
+    channelId: message?.channel?.id,
+    commandName: ad,
+    replied: false,
+    deferred: false,
+
+    options: {
+      _getOpt: (name) => optTanim.find(o => o.name === name),
+      getString: function(name) { return gelen[name] ?? null; },
+      getInteger: function(name) { const v = gelen[name]; return v != null ? parseInt(v) : null; },
+      getNumber: function(name) { const v = gelen[name]; return v != null ? parseFloat(v) : null; },
+      getBoolean: function(name) { return gelen[name] ?? null; },
+      getUser: async function(name) {
+        const id = gelen[name];
+        if (!id) return null;
+        return message?.client?.users?.fetch(String(id)).catch(() => null);
+      },
+      getMember: function(name) {
+        const id = gelen[name];
+        if (!id) return null;
+        return guild?.members?.cache?.get(String(id)) || null;
+      },
+      getChannel: function(name) {
+        const id = gelen[name];
+        if (!id) return null;
+        return guild?.channels?.cache?.get(String(id)) || null;
+      },
+      getRole: function(name) {
+        const id = gelen[name];
+        if (!id) return null;
+        return guild?.roles?.cache?.get(String(id)) || null;
+      },
+    },
+
+    reply: async function(icerik) {
+      sonuclar.push(icerik);
+      this.replied = true;
+      return { id: 'fake' };
+    },
+    editReply: async function(icerik) {
+      sonuclar.push(icerik);
+      return { id: 'fake' };
+    },
+    deferReply: async function() {
+      this.deferred = true;
+      return { id: 'fake' };
+    },
+    followUp: async function(icerik) {
+      sonuclar.push(icerik);
+      return { id: 'fake' };
+    },
+  };
+
+  // Eksik member için fetch dene
+  if (!sahteInteraction.member && message?.author?.id && guild) {
+    sahteInteraction.member = await guild.members.fetch(message.author.id).catch(() => null);
+  }
+
+  try {
+    await komut.execute(sahteInteraction, message?.client);
+  } catch (err) {
+    return `❌ Komut çalıştırılırken hata: ${err.message}`;
+  }
+
+  // Komut mesajı kanala gönderildi mi?
+  if (sonuclar.length === 0) return `✅ **/${ad}** çalıştırıldı.`;
+
+  // Cevabı mevcut kanala gönderip özet dön
+  const ilk = sonuclar[0];
+  if (message?.channel) {
+    try {
+      if (typeof ilk === 'string') {
+        await message.channel.send(ilk);
+      } else if (ilk.embeds || ilk.content) {
+        await message.channel.send({
+          content: ilk.content,
+          embeds: ilk.embeds || [],
+          components: ilk.components || [],
+        });
+      }
+    } catch (e) {
+      return `❌ Komut sonucu gönderilemedi: ${e.message}`;
+    }
+  }
+  return `✅ **/${ad}** çalıştırıldı.`;
 }
 
 module.exports = { islemUygula };
