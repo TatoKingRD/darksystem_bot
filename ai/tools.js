@@ -366,6 +366,24 @@ const ONAYSIZ = [
   'kanal_olustur', 'kanal_temizle', 'kanal_tek_temizle',
   'kanal_emoji_ekle', 'kanal_kategori_duzenle',
   'anket_olustur', 'cekilis_baslat', 'nick_degistir',
+  // Slash komut cagirma (icindeki komutun zararli olup olmadigini kullanici slash yetkisiyle kendi kontrol ediyor)
+  'slash_komut_calistir',
 ];
 
-module.exports = { ARACLAR, ONAYSIZ };
+// Dinamik olarak commands/ klasorundeki slash komutlarini tarayip ARACLAR listesine ekler.
+// aiAsistan.js bunu çağırır, her isteğin başında güncel listeyi alır.
+function araclariHazirla() {
+  try {
+    const { komutlariTara, slashAraciOlustur } = require('./komutTarayici');
+    const path = require('path');
+    const komutlar = komutlariTara(path.join(__dirname, '..', 'commands'));
+    if (komutlar.length === 0) return ARACLAR;
+    const slashAraci = slashAraciOlustur(komutlar);
+    return [...ARACLAR, slashAraci];
+  } catch (e) {
+    console.warn('[tools] Slash komutlar yuklenemedi:', e.message);
+    return ARACLAR;
+  }
+}
+
+module.exports = { ARACLAR, ONAYSIZ, araclariHazirla };
