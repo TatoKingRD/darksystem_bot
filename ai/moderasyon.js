@@ -5,25 +5,166 @@ const { EmbedBuilder } = require('discord.js');
 const { groqSor } = require('./groqApi');
 
 // ─── KELIME LISTELERI ───
-// Acik kufur/hakaret (anlik algilama icin)
-const KESIN_KUFURLER = [
-  // Ağır küfürler (yaygın olanların kökleri)
-  'amk', 'aq', 'amq', 'amına', 'amina', 'orospu', 'oç', 'piç', 'pic',
-  'sikerim', 'sikim', 'sikiş', 'sikis', 'sikeyim', 'siktir', 'siktirgit',
-  'yarrak', 'yarak', 'göt', 'got ', 'göt ', 'gotveren', 'götveren',
-  'ibne', 'puşt', 'pust', 'serefsiz', 'şerefsiz', 'itoğlu', 'itoglu',
-  'salak', 'gerizekalı', 'gerizekali', 'mal ', 'aptal', 'embesil',
-  'dangalak', 'andaval', 'kaltak', 'sürtük', 'surtuk', 'fahişe', 'fahise',
-  'bok ', 'sıçtın', 'sictin', 'anan', 'ananı', 'anani', 'avrat',
-  'babanı', 'babani',
+// Kokler - TAM KELIME olarak eslesir, icerdigi kelimelerde yakalanmaz.
+// Yani "anasi" kökünü koysak bile "nasılsın" içinde yakalanmayacak (kelime sınırı kontrolü var).
+// Ayrıca cok kisa kokleri (1-2 harf) buraya koyma - regex'te ayrıca var.
+const KUFUR_KOKLERI = [
+  // ─── Agir kufur - tam kelime ─── (regex'te cok spesifik olmayan versiyonlari buraya)
+  'amk', 'aq', 'amq', 'amg', 'awq', 'amcik', 'amcık',
+  'orospu', 'orosbu', 'orosbı', 'oruspu',
+  'piç', 'pic', 'pich',
+  'yarrak', 'yarak',
+  'ibne', 'iibne',
+  'puşt', 'pust', 'pusht',
+  'şerefsiz', 'serefsiz',
+  'kaltak', 'sürtük', 'surtuk',
+  'fahişe', 'fahise',
+  'gavat', 'kavat', 'kahpe',
+  'gerizekalı', 'gerizekali', 'gerizekâlı',
+  'dangalak', 'andaval', 'embesil',
+  'pezevenk', 'pezo',
+  // ─── Cekimli yaygin formlar ───
+  'siktir', 'siktirgit', 'sikeyim', 'sikerim', 'sikim', 'siktim',
+  'sikiyim', 'sikiyom', 'sikiyorum', 'sikicem',
+  'amına', 'amina', 'amıina', 'amina koyim', 'amina koyum',
+  'götveren', 'gotveren', 'götoş', 'götoş',
+  // ─── Kisa varyantlar ───
+  'oç', 'oçç',
+  'mk', 'sg', 'sktr',
 ];
 
-// Supheli ifadeler (AI'ye danısılacak kategori)
+// Supheli ifadeler (AI'ye danısılacak kategori) - kendi basina kufur sayilmaz
 const SUPHELI_KELIMELER = [
-  'salak', 'aptal', 'sus ', 'kapa çeneni', 'kapa ceneni',
-  'boş konuş', 'sen ne', 'saçmalama', 'sacmalama',
-  'ne diyon', 'kapat', 'hadi lan', 'lan ',
+  'sus ', 'sus,', 'sus.', 'sus!', 'kapa çeneni', 'kapa ceneni',
+  'saçmalama', 'sacmalama', 'sacma konusma', 'saçma konuşma',
+  'ne diyon', 'ne diyosun', 'ne dedin lan', 'kapat lan',
+  'ezik', 'eziksin', 'beceriksiz', 'işe yaramaz',
+  'siktir git', 'hadi oradan', 'defol',
+  'dalga mı', 'komik misin', 'gıcık', 'gicik',
+  'salak', 'aptal', 'mal ',
 ];
+
+// ─── METNI NORMALIZE ET ───
+// Leetspeak, ozel karakterler, bosluklari temizler
+function metniNormalize(metin) {
+  return (metin || '')
+    .toLowerCase()
+    // Leetspeak
+    .replace(/0/g, 'o')
+    .replace(/1/g, 'i')
+    .replace(/3/g, 'e')
+    .replace(/4/g, 'a')
+    .replace(/5/g, 's')
+    .replace(/7/g, 't')
+    .replace(/8/g, 'b')
+    .replace(/@/g, 'a')
+    .replace(/\$/g, 's')
+    // Turkce karakter duzeltme - ASCII'ye
+    .replace(/ı/g, 'i').replace(/İ/g, 'i')
+    .replace(/ş/g, 's').replace(/Ş/g, 's')
+    .replace(/ğ/g, 'g').replace(/Ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/Ü/g, 'u')
+    .replace(/ö/g, 'o').replace(/Ö/g, 'o')
+    .replace(/ç/g, 'c').replace(/Ç/g, 'c')
+    // Tekrarli harfleri tek harfe dusur (sikktiirr → siktir, mkkk → mk)
+    .replace(/(.)\1{2,}/g, '$1$1')
+    // Ozel karakterleri bosluga cevir (*, _, -, ., vb.)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    // Coklu bosluklari teke indir
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Bosluklu yazim yakalama: "s i k t i r" → "siktir"
+function boslukluKontrol(metin) {
+  const tek = metin.replace(/\s+/g, '');
+  return tek;
+}
+
+// ─── REGEX DESENLERI ───
+// Varyasyonlari yakalayan ama yanlis pozitif vermeyen spesifik kaliplar
+// ONEMLI: Kelime siniri (\b) ile baslar ve TAM biten kaliplar kullanir
+const REGEX_DESENLERI = [
+  // amk, aq, amq, amg, awq varyasyonları - kelime olarak
+  /\b(?:a+m+[kqgc]+|a+[wq]+|a+m+q+)\b/i,
+  // am.k, a.m.k vs. (nokta/boşluk arasi)
+  /\ba[\s.*_-]+m[\s.*_-]+[kqg]\b/i,
+  // amcık, amına varyasyonları
+  /\ba+m+[cç](?:i|ı|ik|ık)/i,
+  /\ba+m+(?:i|ı)n(?:a|â)/i,
+  // sik + gerçek çekimler: siktir, sikim, sikeyim, siktim, sikerim, sikiyor vb.
+  // Cekim sonuna "in", "i", "nin" gibi iyelik ekleri de gelebilir
+  /\bs+i+k+(?:ti|tir|tim|tin|im|eyim|erim|iyor|ecek|ti[gğ]im|ti[gğ]i|ti[gğ]in|icek|en|tinin|ici)\w*/i,
+  /\bs+o+k+(?:ar[ıi]m|ay[ıi]m|em|im)\b/i,  // sokarım, sokayım
+  // orospu varyasyonları
+  /\bo+r+o+s+[pb]+u+/i,
+  // göt, gotveren
+  /\bg[oö]+t(?:[\s]|lek|veren|os|un|une|üm)/i,
+  // piç, pic (tek başına veya "piçi", "piçini" gibi)
+  /\bpi+ç+\b/i, /\bpi+c+\b/i,
+  // yarrak, yarak
+  /\by+a+r+r?a+k+\b/i,
+  // anan, ananı, babanı vb. - "sen"den sonra veya başlangıçta
+  /\b(?:ana|baba|baci|bacı|kari|karı|avrat)n(?:i|ı|in|ın|izi|ızı|ız|izin|ızın|a|e)\b/i,
+  // ibne, puşt, kaltak vb.
+  /\b(?:ibne|pu[şs][th]|serefsiz|şerefsiz|kahpe|kaltak|s[uü]rt[uü]k|fahi[şs]e|pezevenk|pezo)\b/i,
+  // kısaltmalar: mk, sg, sktr, aw (kelime olarak)
+  /\b(?:mk|sg|sktr|skrm|sktm)\b/i,
+];
+
+// ─── KESIN KUFUR TESPITI ───
+function kesinKufurMu(mesaj) {
+  const orijinal = (mesaj || '').toLowerCase();
+  const normalize = metniNormalize(mesaj);
+  const bosluksuz = boslukluKontrol(normalize);
+
+  // 1) Kok listesi kontrolu
+  // Tum koklere: kelime siniri gerekli. "nasılsın" icinde "anasi" bulunmasin diye.
+  const metinlerKontrolEdilecek = [
+    { metin: normalize, etiket: 'normalize' },
+    { metin: orijinal, etiket: 'orijinal' },
+  ];
+
+  for (const { metin } of metinlerKontrolEdilecek) {
+    for (const kok of KUFUR_KOKLERI) {
+      const k = kok.toLowerCase().trim();
+      if (!k) continue;
+      // Kelime siniri: \b kullanarak sadece gercek kelimelerde yakala
+      // "anasi" = kelime olarak gecmeli, "nasilsin" icinde olmamali
+      const temizKok = k.replace(/[^a-z0-9]/g, ''); // regex icin guvenli
+      if (temizKok.length < 2) continue;
+      const re = new RegExp('(?:^|[^a-z0-9])' + temizKok + '(?:[^a-z0-9]|$)', 'i');
+      if (re.test(metin)) {
+        return { yakalandi: true, sebep: `Küfür kökü: "${k}"` };
+      }
+    }
+  }
+
+  // 2) Bosluksuz metinde sadece UZUN koklere bak (en az 4 harf)
+  // Boylece "s i k t i r" yakalanir, "as i a" gibi sey yakalanmaz
+  for (const kok of KUFUR_KOKLERI) {
+    const k = kok.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    if (k.length < 4) continue;
+    if (bosluksuz.includes(k)) {
+      return { yakalandi: true, sebep: `Küfür kökü (boşluklu): "${k}"` };
+    }
+  }
+
+  // 3) Regex desenleri (normalize edilmis metinde)
+  for (const regex of REGEX_DESENLERI) {
+    if (regex.test(normalize)) {
+      return { yakalandi: true, sebep: `Küfür deseni eşleşti` };
+    }
+  }
+
+  return { yakalandi: false, sebep: null };
+}
+
+// Supheli ifade var mi?
+function supheliMi(mesaj) {
+  const normalize = metniNormalize(mesaj);
+  return SUPHELI_KELIMELER.some(k => normalize.includes(k.toLowerCase().trim()));
+}
 
 // ─── KARA LISTE KONTROL ───
 function karaListeKontrol(kullaniciId, kullaniciVerisi) {
@@ -66,8 +207,9 @@ async function aiSaldirganliKontrol(mesaj) {
 // ─── ANA ANALIZ FONKSIYONU ───
 // Dönüş: { durum: 'temiz' | 'supheli' | 'kufur', sebep: '...' }
 async function mesajiAnalizEt(mesaj) {
-  if (kesinKufurMu(mesaj)) {
-    return { durum: 'kufur', sebep: 'Küfür/hakaret tespit edildi' };
+  const kesinSonuc = kesinKufurMu(mesaj);
+  if (kesinSonuc.yakalandi) {
+    return { durum: 'kufur', sebep: kesinSonuc.sebep };
   }
   if (supheliMi(mesaj)) {
     // AI'ye danış
@@ -77,6 +219,9 @@ async function mesajiAnalizEt(mesaj) {
     }
     return { durum: 'supheli', sebep: 'Şüpheli ifade ama agresif değil' };
   }
+  // Kelime listesinde yakalanmadı ama bir son kontrol: hakaret/agresiflik kontrolü
+  // Sadece mesaj yeterince uzunsa ve bot'a yazıldıysa (bu kontrol aiAsistan'da zaten var)
+  // Burada ekstra AI çağrısı yapmıyoruz - performans için. Sadece kelime tabanlı algılama yeterli.
   return { durum: 'temiz', sebep: null };
 }
 
