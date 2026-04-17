@@ -19,7 +19,9 @@ module.exports = async function aiAsistan(message, client) {
 
   // Kullanıcı bota reply atmış mı? (etiketleme şart değil)
   let botaReply = false;
+  let yanitlananMesajId = null;
   if (message.reference?.messageId) {
+    yanitlananMesajId = message.reference.messageId;
     try {
       const refMesaj = await message.channel.messages.fetch(message.reference.messageId);
       if (refMesaj?.author?.id === client.user.id) botaReply = true;
@@ -39,10 +41,15 @@ module.exports = async function aiAsistan(message, client) {
 
   const gecmis = await gecmisiGetir(client, message.author.id);
 
+  let sistemIcerik = SISTEM_MESAJI + `\n\nMEVCUT_KANAL: ${message.channel.name}`;
+  if (yanitlananMesajId) {
+    sistemIcerik += `\nYANITLANAN_MESAJ_ID: ${yanitlananMesajId} (kullanıcı bir mesaja reply atmış; mesaj_id gereken komutlarda bu ID'yi kullanabilirsin)`;
+  }
+
   const mesajlar = [
     {
       role: 'system',
-      content: SISTEM_MESAJI + `\n\nMEVCUT_KANAL: ${message.channel.name}`,
+      content: sistemIcerik,
     },
     ...gecmis,
     { role: 'user', content: soru },
