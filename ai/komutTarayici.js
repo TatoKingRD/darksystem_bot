@@ -11,7 +11,6 @@ const KARA_LISTE = [
   'hosgeldin',   // event (yeni üye girince)
   'rankguncelle',// arka plan işi
   'dmhatirlatma',// DM event
-  'eglence',     // interaction tabanlı oyunlar
 ];
 
 // Discord.js option tipinden JSON schema tipine çeviri
