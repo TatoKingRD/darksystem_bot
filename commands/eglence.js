@@ -120,10 +120,55 @@ function sayaclariKaydet(client) {
         console.warn('[eglence] Veri cok buyuk, kayit atlandi. Boyut:', json.length);
         return;
       }
+
+      // Tum kullanicilar icin etkilesim icin isim cozme
+      const tumKullaniciIdleri = new Set();
+      for (const [kullaniciId, veri2] of Object.entries(veri)) {
+        tumKullaniciIdleri.add(kullaniciId);
+        for (const [_komut, deger] of Object.entries(veri2)) {
+          if (typeof deger === 'object') {
+            for (const hedefId of Object.keys(deger)) tumKullaniciIdleri.add(hedefId);
+          }
+        }
+      }
+
+      // ID → kullanici adi (cache)
+      const isimMap = new Map();
+      for (const id of tumKullaniciIdleri) {
+        try {
+          const k = await client.users.fetch(id).catch(() => null);
+          if (k) isimMap.set(id, k.username);
+        } catch {}
+      }
+      const isimAl = (id) => isimMap.get(id) || id;
+
+      // Insan okunabilir ozet
+      const ozetSatirlari = [];
+      for (const [kullaniciId, veri2] of Object.entries(veri)) {
+        const kullaniciAdi = isimAl(kullaniciId);
+        const komutSatirlari = [];
+        for (const [komut, deger] of Object.entries(veri2)) {
+          if (typeof deger === 'object') {
+            // Etkilesim: komut -> hedef -> sayi
+            const hedefler = Object.entries(deger).map(
+              ([hId, s]) => `${isimAl(hId)} (${s})`
+            ).join(', ');
+            komutSatirlari.push(`  • **${komut}**: ${hedefler}`);
+          } else if (typeof deger === 'number') {
+            komutSatirlari.push(`  • **${komut}**: ${deger} kez`);
+          }
+        }
+        if (komutSatirlari.length) {
+          ozetSatirlari.push(`**${kullaniciAdi}**\n${komutSatirlari.join('\n')}`);
+        }
+      }
+      const ozetMetin = ozetSatirlari.join('\n\n').substring(0, 1024) || 'Henuz veri yok.';
+
       const embed = new EmbedBuilder()
         .setTitle('📊 Eğlence Sayaç Kaydı')
         .setColor(0x5865F2)
         .setDescription('```json\n' + json + '\n```')
+        .addFields({ name: '📖 Özet', value: ozetMetin, inline: false })
         .setFooter({ text: 'eglence-sayac: ' + new Date().toISOString() })
         .setTimestamp();
       await kanal.send({ embeds: [embed] }).catch(() => {});
