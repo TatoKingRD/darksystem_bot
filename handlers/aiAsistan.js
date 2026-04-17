@@ -1,10 +1,13 @@
 // handlers/aiAsistan.js
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { groqSor } = require('../ai/groqApi');
-const { ARACLAR, ONAYSIZ } = require('../ai/tools');
+const { ARACLAR, ONAYSIZ, araclariHazirla } = require('../ai/tools');
 const { islemUygula } = require('../ai/islemUygula');
 const { gecmisiGetir, gecmisiGuncelle, gecmisiKanalaKaydet } = require('../ai/gecmis');
 const SISTEM_MESAJI = require('../ai/sistemMesaji');
+
+// Araçları (manuel tool'lar + dinamik slash komutlar) bir kere hazırla
+const ARACLAR_TUM = (typeof araclariHazirla === 'function') ? araclariHazirla() : ARACLAR;
 
 // Onay bekleyen işlemler (interactionHandler ile paylaşılır)
 const bekleyenIslemler = new Map();
@@ -45,7 +48,7 @@ module.exports = async function aiAsistan(message, client) {
     { role: 'user', content: soru },
   ];
 
-  const sonuc = await groqSor(mesajlar, ARACLAR);
+  const sonuc = await groqSor(mesajlar, ARACLAR_TUM);
   if (!sonuc) return message.reply('❌ Bağlantı hatası.');
 
   const secim = sonuc.choices?.[0];
