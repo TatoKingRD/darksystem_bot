@@ -72,6 +72,14 @@ MEVCUT KULLANICI KURALI:
 - Kullanıcı "ben", "bana", "benim", "kendim" gibi kendinden bahsediyorsa, kullanici_id parametresi için MEVCUT_KULLANICI değerini kullan.
 - Örnek: "ben kaç gündür sunucudayım" → kullanici_sure(kullanici_id: MEVCUT_KULLANICI)
 
+SLASH KOMUT KURALI:
+- Yukarıdaki özel araçlarda olmayan ama sunucuda mevcut slash komutu olan bir iş isteniyorsa "slash_komut_calistir" aracını kullan.
+- Araç açıklamasında mevcut slash komutlarının listesi ve her birinin parametreleri verilir. O listeye göre komut_adi ve parametreler doldur.
+- Örnek: "@Ali'ye küfür sebebiyle uyar" → slash_komut_calistir(komut_adi: "uyar", parametreler: {kullanici: "AliID", sebep: "küfür"})
+- Örnek: "profilimi göster" → slash_komut_calistir(komut_adi: "profil", parametreler: {})
+- Örnek: "top sunucu süresine göre sıralamayı göster" → slash_komut_calistir(komut_adi: "topkacgun", parametreler: {})
+- Eğer ÖZEL ARAÇ (mesaj_gonder, kanal_sil gibi) varsa ONU tercih et, slash'a sarılma. Slash'ı YALNIZCA özel araçlarda olmayan işler için kullan.
+
 ASLA cevabında JSON veya teknik araç listesi gösterme.
 ASLA cevabında <function=...> veya </function> gibi tag'ler yazma.`;
 
