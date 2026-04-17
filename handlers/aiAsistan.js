@@ -58,19 +58,25 @@ module.exports = async function aiAsistan(message, client) {
   }
 
   // ─── BANT ACMA (sadece sahibi yapabilir) ───
-  // "X'in banini kaldir" / "bant ac" gibi ifadeleri yakala
+  // Esnek yakalama: Etiketli kullanici + [ban/kara/uyari/liste/bant] + [kaldir/ac/temizle/sil]
   if (islemYetkisi) {
-    const bantAcKaliplar = /(ban[ıi]n[ıi]?\s*(kald[ıi]r|a[çc])|kara\s*liste(den|yi)?\s*(kald[ıi]r|a[çc]|temizle|sil)|bant\s*a[çc]|beyaz\s*listey?e\s*al)/i;
     const mentionMatch = message.content.match(/<@!?(\d+)>/g) || [];
-    // Bot haricinde etiketlenen ilk kullanıcı
     const hedefId = mentionMatch
       .map(m => m.replace(/[<@!>]/g, ''))
       .find(id => id !== client.user.id);
 
-    if (bantAcKaliplar.test(soru) && hedefId) {
-      await moderasyon.bantAc(client, hedefId, kullaniciVerisi);
-      try { await message.react('✅'); } catch {}
-      return message.reply(`✅ <@${hedefId}> kullanıcısının kara listesi temizlendi, artık cevap verebilirim.`);
+    if (hedefId) {
+      const soruNorm = soru.toLowerCase();
+      // Konu kelimesi: kara, liste/luste, ban/bant (ve tureevleri uyari/uyar)
+      const konuVar = /(kara|liste|luste|\bban\w*|\bbant\w*|\buyar\w*|moderasyon|engel|beyaz)/i.test(soruNorm);
+      // Fiil: kald, temizle/sil/ac/aç/sifirla/kapat, cikar, al (al yerine "ekle" de uygun)
+      const fiilVar = /(kald[ıi]r|temizle|temize|\bsil\b|\bsil\w*|(^|\s)a[çc]($|[\s.,!?])|sifirla|s[ıi]f[ıi]rla|kapat|[çc][ıi]kar|affet|\bal\b|ekle)/i.test(soruNorm);
+
+      if (konuVar && fiilVar) {
+        await moderasyon.bantAc(client, hedefId, kullaniciVerisi);
+        try { await message.react('✅'); } catch {}
+        return message.reply(`✅ <@${hedefId}> kullanıcısının kara listesi temizlendi, artık cevap verebilirim.`);
+      }
     }
   }
 
