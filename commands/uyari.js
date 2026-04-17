@@ -34,7 +34,7 @@ async function uyarExecute(interaction) {
   await hedef.send({ embeds: [new EmbedBuilder()
     .setTitle('⚠️ Uyarı Aldın!')
     .setColor(0xFFA500)
-    .setDescription('**Mobile Legends 🇹🇷 #TURNUVA** sunucusunda uyarı aldın.')
+    .setDescription('**AniZen TR** sunucusunda uyarı aldın.')
     .addFields(
       { name: '📋 Sebep', value: sebep, inline: false },
       { name: '🛡️ Yetkili', value: `<@${interaction.user.id}>`, inline: true },
