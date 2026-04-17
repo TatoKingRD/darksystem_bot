@@ -177,17 +177,6 @@ function karaListeKontrol(kullaniciId, kullaniciVerisi) {
 }
 
 // ─── MESAJ ANALIZI ───
-// Hızlı kelime kontrolü - kesin küfür mü?
-function kesinKufurMu(mesaj) {
-  const lower = ' ' + mesaj.toLowerCase() + ' ';
-  return KESIN_KUFURLER.some(k => lower.includes(' ' + k) || lower.includes(k + ' '));
-}
-
-// Şüpheli ifade var mı?
-function supheliMi(mesaj) {
-  const lower = mesaj.toLowerCase();
-  return SUPHELI_KELIMELER.some(k => lower.includes(k));
-}
 
 // AI'ye danış - gerçekten saldırgan mı yoksa normal sohbet mi?
 // Küçük/hızlı bir model yeterli, sadece evet/hayır cevabı istiyoruz
