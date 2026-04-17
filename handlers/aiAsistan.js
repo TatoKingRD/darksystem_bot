@@ -50,8 +50,12 @@ module.exports = async function aiAsistan(message, client) {
   const soru = message.content.replace(botMention, '').replace(botMentionNick, '').trim();
   if (!soru) return message.reply('Merhaba! 👋 Nasıl yardımcı olabilirim?');
 
-  const sahipId = process.env.AI_SAHIP_ID || '799564777839788033';
-  const islemYetkisi = message.author.id === sahipId;
+  const sahipIdler = (process.env.AI_SAHIP_ID || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const islemYetkisi = sahipIdler.includes(message.author.id);
+  if (sahipIdler.length === 0) {
+    console.warn('[aiAsistan] AI_SAHIP_ID env variable tanimli degil! Hic kimse yonetici yetkisine sahip olmayacak.');
+  }
 
   // ─── BANT ACMA (sadece sahibi yapabilir) ───
   // "X'in banini kaldir" / "bant ac" gibi ifadeleri yakala
@@ -83,7 +87,11 @@ module.exports = async function aiAsistan(message, client) {
   // ─── KUFUR/SUPHELI KONTROL ───
   // Sahip kendi botuna ne derse desin, kontrol etme
   if (!islemYetkisi) {
-    const analiz = await moderasyon.mesajiAnalizEt(soru).catch(() => ({ durum: 'temiz' }));
+    const analiz = await moderasyon.mesajiAnalizEt(soru).catch((e) => {
+      console.error('[moderasyon] Analiz hatasi:', e.message);
+      return { durum: 'temiz' };
+    });
+    console.log(`[moderasyon] ${message.author.tag}: "${soru.substring(0, 80)}" → ${analiz.durum}${analiz.sebep ? ' (' + analiz.sebep + ')' : ''}`);
 
     if (analiz.durum === 'kufur') {
       const { karaListede, uyariSayisi } = await moderasyon.uyariVer(
