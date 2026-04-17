@@ -233,7 +233,7 @@ module.exports = async function interactionHandler(client, interaction) {
       .setPlaceholder('Örnek: 18').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(3);
     if (mevcutBilgi?.yas) yasInput.setValue(`${mevcutBilgi.yas}`);
     const ignInput = new TextInputBuilder().setCustomId('ign').setLabel('Yeni IGN (Opsiyonel)')
-      .setPlaceholder('MLBB nickini gir ya da boş bırak').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
+      .setPlaceholder('Oyun nickini gir ya da boş bırak').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(64);
     if (mevcutBilgi?.ign) ignInput.setValue(mevcutBilgi.ign);
     const oyunIdInput = new TextInputBuilder().setCustomId('oyunId').setLabel('Yeni Oyun ID (Opsiyonel)')
       .setPlaceholder('Örnek: 123456789 (1234)').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(32);
