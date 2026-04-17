@@ -23,7 +23,7 @@ const rolEmojileri = {
 // ─── /hero ───
 const heroData = new SlashCommandBuilder()
   .setName('hero')
-  .setDescription('Rastgele MLBB hero önerir')
+  .setDescription('Rastgele bir karakter/hero önerir')
   .addStringOption(opt => opt
     .setName('rol')
     .setDescription('Rol seç (opsiyonel)')
