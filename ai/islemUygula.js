@@ -412,8 +412,9 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         await uye.setNickname(parametreler.yeni_nick);
         return `✅ **${eskiNick}** → **${parametreler.yeni_nick}** olarak değiştirildi.`;
       }
+
       
-              // ─── SUNUCU BİLGİ ───
+            // ─── SUNUCU BİLGİ ───
       case 'sunucu_istatistik': {
         await guild.members.fetch();
         const toplamUye = guild.memberCount;
@@ -546,14 +547,15 @@ function komutuBul(ad) {
   for (const dosya of dosyalar) {
     try {
       const modul = require(path.join(klasor, dosya));
-      if (modul.commands) {
-        for (const c of modul.commands) {
+      let liste = [];
+      if (Array.isArray(modul)) liste = modul;
+      else if (modul.commands && Array.isArray(modul.commands)) liste = modul.commands;
+      else if (modul.data && modul.execute) liste = [modul];
+      for (const c of liste) {
+        if (c?.data && c?.execute) {
           const json = c.data.toJSON ? c.data.toJSON() : c.data;
           komutCache.set(json.name, c);
         }
-      } else if (modul.data && modul.execute) {
-        const json = modul.data.toJSON ? modul.data.toJSON() : modul.data;
-        komutCache.set(json.name, modul);
       }
     } catch {}
   }
