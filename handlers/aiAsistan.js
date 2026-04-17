@@ -80,7 +80,7 @@ module.exports = async function aiAsistan(message, client) {
       gecmis.push({ role: 'assistant', content: sonucMesaj });
       gecmisiGuncelle(message.author.id, gecmis);
       gecmisiKanalaKaydet(client, message.author.id, gecmis).catch(() => {});
-      return message.reply(sonucMesaj);
+      return sonucGonder(message, sonucMesaj);
     }
 
     // Onay butonu
@@ -127,7 +127,7 @@ module.exports = async function aiAsistan(message, client) {
       try { parametreler = JSON.parse(match[2] || '{}'); } catch {}
       if (ONAYSIZ.includes(islemAdi)) {
         const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild, message);
-        await message.reply(sonucMesaj);
+        await sonucGonder(message, sonucMesaj);
       } else {
         const aciklama = Object.entries(parametreler).map(([k, v]) => `**${k}:** ${v}`).join('\n');
         const embed = new EmbedBuilder()
@@ -166,3 +166,13 @@ module.exports = async function aiAsistan(message, client) {
 
 module.exports.bekleyenIslemler = bekleyenIslemler;
 module.exports.islemUygula = islemUygula;
+
+// Tool sonuclarini gonderirken: basarili ise sadece reaction, hata ise normal mesaj
+async function sonucGonder(message, sonucMesaj) {
+  if (typeof sonucMesaj === 'string' && sonucMesaj.trim().startsWith('✅')) {
+    try { await message.react('✅'); } catch {}
+    return;
+  }
+  try { await message.reply(sonucMesaj); } catch {}
+}
+module.exports.sonucGonder = sonucGonder;
