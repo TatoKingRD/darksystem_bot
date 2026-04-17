@@ -283,11 +283,14 @@ async function logKanalinaYaz(client, embed) {
 
 // ─── SAHIBE DM ───
 async function sahibeDmAt(client, embed) {
-  const sahipId = process.env.AI_SAHIP_ID || '799564777839788033';
-  try {
-    const sahip = await client.users.fetch(sahipId).catch(() => null);
-    if (sahip) await sahip.send({ embeds: [embed] }).catch(() => {});
-  } catch {}
+  const sahipIdler = (process.env.AI_SAHIP_ID || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  for (const sahipId of sahipIdler) {
+    try {
+      const sahip = await client.users.fetch(sahipId).catch(() => null);
+      if (sahip) await sahip.send({ embeds: [embed] }).catch(() => {});
+    } catch {}
+  }
 }
 
 // ─── UYARI VER ───
