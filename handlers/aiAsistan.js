@@ -5,6 +5,7 @@ const { ARACLAR, ONAYSIZ, araclariHazirla } = require('../ai/tools');
 const { islemUygula } = require('../ai/islemUygula');
 const { gecmisiGetir, gecmisiGuncelle, gecmisiKanalaKaydet } = require('../ai/gecmis');
 const SISTEM_MESAJI = require('../ai/sistemMesaji');
+const moderasyon = require('../ai/moderasyon');
 
 // Araçları (manuel tool'lar + dinamik slash komutlar) bir kere hazırla
 const ARACLAR_TUM = (typeof araclariHazirla === 'function') ? araclariHazirla() : ARACLAR;
@@ -12,8 +13,23 @@ const ARACLAR_TUM = (typeof araclariHazirla === 'function') ? araclariHazirla() 
 // Onay bekleyen işlemler (interactionHandler ile paylaşılır)
 const bekleyenIslemler = new Map();
 
+// Bot-moderasyon: kullanici bazli uyari/kara liste verisi (log kanalindan yuklenecek)
+let kullaniciVerisi = new Map();
+let verisiYuklendiMi = false;
+
+async function verisiYukleBirKere(client) {
+  if (verisiYuklendiMi) return;
+  verisiYuklendiMi = true;
+  kullaniciVerisi = await moderasyon.kullaniciVerisiniYukle(client);
+  console.log(`[moderasyon] ${kullaniciVerisi.size} kullanici verisi yuklendi.`);
+}
+
 module.exports = async function aiAsistan(message, client) {
   if (message.author.bot) return;
+
+  // Ilk cagri'da veriyi yukle
+  await verisiYukleBirKere(client);
+
   const botMention = `<@${client.user.id}>`;
   const botMentionNick = `<@!${client.user.id}>`;
 
@@ -36,6 +52,63 @@ module.exports = async function aiAsistan(message, client) {
 
   const sahipId = process.env.AI_SAHIP_ID || '799564777839788033';
   const islemYetkisi = message.author.id === sahipId;
+
+  // ─── BANT ACMA (sadece sahibi yapabilir) ───
+  // "X'in banini kaldir" / "bant ac" gibi ifadeleri yakala
+  if (islemYetkisi) {
+    const bantAcKaliplar = /(ban[ıi]n[ıi]?\s*(kald[ıi]r|a[çc])|kara\s*liste(den|yi)?\s*(kald[ıi]r|a[çc]|temizle|sil)|bant\s*a[çc]|beyaz\s*listey?e\s*al)/i;
+    const mentionMatch = message.content.match(/<@!?(\d+)>/g) || [];
+    // Bot haricinde etiketlenen ilk kullanıcı
+    const hedefId = mentionMatch
+      .map(m => m.replace(/[<@!>]/g, ''))
+      .find(id => id !== client.user.id);
+
+    if (bantAcKaliplar.test(soru) && hedefId) {
+      await moderasyon.bantAc(client, hedefId, kullaniciVerisi);
+      try { await message.react('✅'); } catch {}
+      return message.reply(`✅ <@${hedefId}> kullanıcısının kara listesi temizlendi, artık cevap verebilirim.`);
+    }
+  }
+
+  // ─── KARA LISTE KONTROL ───
+  // Sahibi hariç kara listedeki kullanicilara cevap verme
+  if (!islemYetkisi) {
+    const { karaListede, uyariSayisi } = moderasyon.karaListeKontrol(message.author.id, kullaniciVerisi);
+    if (karaListede) {
+      // Hiç cevap verme, sessizce yok say
+      return;
+    }
+  }
+
+  // ─── KUFUR/SUPHELI KONTROL ───
+  // Sahip kendi botuna ne derse desin, kontrol etme
+  if (!islemYetkisi) {
+    const analiz = await moderasyon.mesajiAnalizEt(soru).catch(() => ({ durum: 'temiz' }));
+
+    if (analiz.durum === 'kufur') {
+      const { karaListede, uyariSayisi } = await moderasyon.uyariVer(
+        client, message.author, message.guild, message, analiz.sebep, kullaniciVerisi
+      );
+
+      if (karaListede) {
+        try { await message.react('🚨'); } catch {}
+        return message.reply(
+          `🚨 <@${message.author.id}>, 3 uyarı biriktirdin ve kara listeye eklendin. ` +
+          `Artık sana cevap vermeyeceğim. Banın açılması için sunucu sahibini bekle.`
+        );
+      } else {
+        try { await message.react('⚠️'); } catch {}
+        return message.reply(
+          `⚠️ <@${message.author.id}>, bana karşı saygılı olmanı rica ederim. ` +
+          `Bu **${uyariSayisi}. uyarın**. 3'e ulaşırsan seninle konuşmayı keserim. ` +
+          `Sebep: _${analiz.sebep}_`
+        );
+      }
+    } else if (analiz.durum === 'supheli') {
+      // Sessiz DM, kullaniciya normal cevap verilir
+      moderasyon.supheliBildir(client, message.author, message.guild, message, analiz.sebep).catch(() => {});
+    }
+  }
 
   await message.channel.sendTyping();
 
