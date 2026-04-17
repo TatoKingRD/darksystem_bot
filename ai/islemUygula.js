@@ -37,6 +37,20 @@ function kanalBul(guild, aranan) {
   );
 }
 
+// MEVCUT_KANAL / buraya / dm gibi ifadeler + normal kanal arama — tek yardımcı
+// Eger kanal bulunamazsa ve message varsa mevcut kanala düşer.
+const BURADAKELIMELERI = ['buraya', 'bu kanal', 'bu kanala', 'burada', 'suraya', 'şuraya', 'su kanala', 'şu kanala', 'dm', 'current', 'mevcut', 'mevcut_kanal', 'mevcutkanal', 'here', 'this channel'];
+function kanalCoz(guild, aranan, message) {
+  const norm = (aranan || '').toString().toLowerCase().trim();
+  if (!aranan || BURADAKELIMELERI.includes(norm)) {
+    return message?.channel || null;
+  }
+  const bulunan = kanalBul(guild, aranan);
+  if (bulunan) return bulunan;
+  // Son çare: mevcut kanal
+  return message?.channel || null;
+}
+
 // Hava durumu - Open-Meteo (ücretsiz, key gerektirmez, stabil)
 function httpsGetJson(hostname, path, timeoutMs = 10000) {
   return new Promise((resolve) => {
@@ -252,7 +266,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ **#${kanal.name}** kanalına mesaj gönderildi.`;
       }
       case 'mesaj_sabitle': {
-        const kanal = kanalBul(guild, parametreler.kanal_adi);
+        const kanal = kanalCoz(guild, parametreler.kanal_adi, message);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         if (parametreler.islem === 'sabitle') {
           const mesajlar = await kanal.messages.fetch({ limit: 1 });
@@ -268,9 +282,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         }
       }
       case 'kanal_yavasla': {
-        const hedefKanal = parametreler.kanal_adi
-          ? kanalBul(guild, parametreler.kanal_adi)
-          : (message?.channel || null);
+        const hedefKanal = kanalCoz(guild, parametreler.kanal_adi, message);
         if (!hedefKanal) return `❌ Kanal bulunamadı.`;
         const saniye = Math.max(0, Math.min(21600, parametreler.saniye || 0));
         await hedefKanal.setRateLimitPerUser(saniye);
@@ -400,9 +412,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         await uye.setNickname(parametreler.yeni_nick);
         return `✅ **${eskiNick}** → **${parametreler.yeni_nick}** olarak değiştirildi.`;
       }
-
       
-              
               // ─── SUNUCU BİLGİ ───
       case 'sunucu_istatistik': {
         await guild.members.fetch();
@@ -441,7 +451,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
 
       // ─── EĞLENCE ───
       case 'anket_olustur': {
-        const kanal = kanalBul(guild, parametreler.kanal_adi);
+        const kanal = kanalCoz(guild, parametreler.kanal_adi, message);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const embed = new EmbedBuilder()
           .setTitle(`📊 ${parametreler.soru}`)
@@ -461,7 +471,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         return `✅ **#${kanal.name}** kanalına anket gönderildi.`;
       }
       case 'cekilis_baslat': {
-        const kanal = kanalBul(guild, parametreler.kanal_adi);
+        const kanal = kanalCoz(guild, parametreler.kanal_adi, message);
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const sure = Math.max(1, parametreler.sure_dakika || 1);
         const bitis = Math.floor(Date.now() / 1000) + (sure * 60);
