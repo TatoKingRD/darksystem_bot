@@ -63,12 +63,20 @@ function komutlariTara(commandsKlasoru) {
     if (KARA_LISTE.includes(isim)) continue;
     try {
       const modul = require(path.join(commandsKlasoru, dosya));
-      if (modul.commands && Array.isArray(modul.commands)) {
-        for (const c of modul.commands) {
-          if (c.data && c.execute) komutlar.push(komutuAraciFormatina(c));
-        }
+      // 3 format destegi:
+      // 1) module.exports = { data, execute }
+      // 2) module.exports = { commands: [...] }
+      // 3) module.exports = [...]  (dizi direkt)
+      let komutListesi = [];
+      if (Array.isArray(modul)) {
+        komutListesi = modul;
+      } else if (modul.commands && Array.isArray(modul.commands)) {
+        komutListesi = modul.commands;
       } else if (modul.data && modul.execute) {
-        komutlar.push(komutuAraciFormatina(modul));
+        komutListesi = [modul];
+      }
+      for (const c of komutListesi) {
+        if (c?.data && c?.execute) komutlar.push(komutuAraciFormatina(c));
       }
     } catch (e) {
       console.warn(`[komutTarayici] ${dosya} okunamadi:`, e.message);
