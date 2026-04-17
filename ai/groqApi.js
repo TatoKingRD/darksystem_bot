@@ -14,7 +14,10 @@ function tekSor(mesajlar, araclar, model) {
       model,
       messages: mesajlar,
       max_tokens: 1024,
-      temperature: 0.6,
+      temperature: 0.85,
+      // Tekrarlayan kelimeleri ve konuları cezalandir - her seferinde farkli cevap
+      frequency_penalty: 0.5,
+      presence_penalty: 0.5,
     };
     if (araclar) {
       payload.tools = araclar;
