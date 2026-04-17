@@ -63,7 +63,7 @@ const komutDetaylari = {
   },
   hero: {
     baslik: '🎲 /hero — Hero Öner',
-    aciklama: 'Rastgele MLBB hero önerir.',
+    aciklama: 'Rastgele bir karakter/hero önerir.',
     kullanim: '`/hero` veya `/hero rol:Mid`',
     parametreler: ['**rol** — Opsiyonel, Tank/Jungler/EXP/Gold/Mid/Roam'],
     renk: 0xE74C3C,
@@ -216,7 +216,7 @@ function getKategoriEmbed(kategoriKey) {
     .setColor(k.renk)
     .setDescription(k.aciklama)
     .addFields(fields)
-    .setFooter({ text: 'MLBB TR • Detay için aşağıdaki butonlara bas' });
+    .setFooter({ text: 'AniZen TR • Detay için aşağıdaki butonlara bas' });
 }
 
 function getKomutDetayEmbed(komutKey) {
@@ -230,7 +230,7 @@ function getKomutDetayEmbed(komutKey) {
   if (d.parametreler.length > 0) {
     embed.addFields({ name: '⚙️ Parametreler', value: d.parametreler.join('\n'), inline: false });
   }
-  embed.setFooter({ text: 'MLBB TR • Komut Detayı' });
+  embed.setFooter({ text: 'AniZen TR • Komut Detayı' });
   return embed;
 }
 
