@@ -108,14 +108,18 @@ client.once('ready', async () => {
     { name: 'AniZen TR 🌸',                    type: ActivityType.Watching },
     { name: '/yardim • komutlar için',         type: ActivityType.Playing },
     { name: `👑 Sahibi: ${sahipAdi}`,           type: ActivityType.Listening },
-    { name: `${client.guilds.cache.size} sunucu • ${client.users.cache.size} kullanıcı`, type: ActivityType.Watching },
+    { name: () => {
+        const uyeSayisi = client.guilds.cache.reduce((t, g) => t + (g.memberCount || 0), 0);
+        return `${client.guilds.cache.size} sunucu • ${uyeSayisi} üye`;
+      }, type: ActivityType.Watching },
   ];
 
   let statusIndex = 0;
   const statusGuncelle = () => {
     const s = statusListesi[statusIndex % statusListesi.length];
+    const name = typeof s.name === 'function' ? s.name() : s.name;
     client.user.setPresence({
-      activities: [{ name: s.name, type: s.type }],
+      activities: [{ name, type: s.type }],
       status: 'online',
     });
     statusIndex++;
