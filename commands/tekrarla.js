@@ -51,31 +51,51 @@ const komutLinkCache = new Map();
 async function komutLinkiBul(client, kanal, komutAdi) {
   if (komutLinkCache.has(komutAdi)) return komutLinkCache.get(komutAdi);
 
-  const addCache = (val) => { komutLinkCache.set(komutAdi, val); return val; };
+  const addCache = (val, kaynak) => {
+    console.log(`[tekrarla] /${komutAdi} linki: ${val} (${kaynak})`);
+    komutLinkCache.set(komutAdi, val);
+    return val;
+  };
 
-  // 1) Kendi botumuzun komutlari
+  // 1) Kendi botumuzun komutlari (global)
   try {
     const appCommands = await client.application.commands.fetch().catch(() => null);
     if (appCommands) {
       const bulunan = appCommands.find(c => c.name === komutAdi);
-      if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`);
+      if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`, 'kendi-bot');
     }
-  } catch {}
+  } catch (e) { console.error('[tekrarla] App commands fetch hata:', e.message); }
 
   // 2) Guild'in diger botlarinin komutlari (disboard vs.)
   try {
     const guild = kanal.guild;
     if (guild) {
+      // Tum bot entegrasyonlarinin komutlarini kontrol et
+      const integrations = await guild.fetchIntegrations().catch(() => null);
+      if (integrations) {
+        for (const [, integ] of integrations) {
+          if (integ.application && integ.application.id) {
+            try {
+              const cmds = await guild.commands.fetch({ applicationId: integ.application.id }).catch(() => null);
+              if (cmds) {
+                const bulunan = cmds.find(c => c.name === komutAdi);
+                if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`, `bot:${integ.application.id}`);
+              }
+            } catch {}
+          }
+        }
+      }
+      // Fallback: guild'in tum kayıtlı komutlarını tara
       const guildCommands = await guild.commands.fetch().catch(() => null);
       if (guildCommands) {
         const bulunan = guildCommands.find(c => c.name === komutAdi);
-        if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`);
+        if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`, 'guild');
       }
     }
-  } catch {}
+  } catch (e) { console.error('[tekrarla] Guild commands fetch hata:', e.message); }
 
   // Bulunamadiysa sadece metinsel goster
-  return addCache(`\`/${komutAdi}\``);
+  return addCache(`\`/${komutAdi}\``, 'bulunamadi');
 }
 
 function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = null) {
@@ -95,12 +115,16 @@ function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = nul
 
       const komutLink = await komutLinkiBul(kanal.client, kanal, komutAdi);
 
+      // Komut linkini mesaj icerigine koy (embed'de bazen render edilmez)
+      const icerik = [
+        pingParcalar.join(' '),
+        `🔔 **Hatırlatma!** ${komutLink} komutunu çalıştırma zamanı geldi!`,
+      ].filter(Boolean).join('\n');
+
       await kanal.send({
-        content: pingParcalar.join(' '),
+        content: icerik,
         embeds: [new EmbedBuilder()
-          .setTitle('🔔 Hatırlatma!')
           .setColor(0xF39C12)
-          .setDescription(`${komutLink} komutunu çalıştırma zamanı geldi!\n\n👆 Yukarıdaki komuta tıklayarak hemen çalıştırabilirsin.`)
           .addFields(
             { name: '⏱️ Tekrar Süresi', value: `${sure} dakikada bir`, inline: true },
             { name: '▶️ Başlatan', value: `<@${baslatanId}>`, inline: true }
