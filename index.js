@@ -92,14 +92,36 @@ client.once('ready', async () => {
     console.error('Slash komut kaydı hatası:', err);
   }
 
-  client.user.setPresence({
-    activities: [{
-      name: 'Mobile Legends TR #TURNUVA',
-      type: ActivityType.Playing,
-      state: 'Sunucuyu Bekliyor 🎮'
-    }],
-    status: 'online'
-  });
+  // ─── ROTASYONLU STATUS ───
+  // Sahip ismini al (env'den ID, ondan username)
+  const sahipIdler = (process.env.AI_SAHIP_ID || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  let sahipAdi = 'Bilinmiyor';
+  if (sahipIdler.length > 0) {
+    try {
+      const sahip = await client.users.fetch(sahipIdler[0]).catch(() => null);
+      if (sahip) sahipAdi = sahip.username;
+    } catch {}
+  }
+
+  const statusListesi = [
+    { name: 'AniZen TR 🌸',                    type: ActivityType.Watching },
+    { name: '/yardim • komutlar için',         type: ActivityType.Playing },
+    { name: `👑 Sahibi: ${sahipAdi}`,           type: ActivityType.Listening },
+    { name: `${client.guilds.cache.size} sunucu • ${client.users.cache.size} kullanıcı`, type: ActivityType.Watching },
+  ];
+
+  let statusIndex = 0;
+  const statusGuncelle = () => {
+    const s = statusListesi[statusIndex % statusListesi.length];
+    client.user.setPresence({
+      activities: [{ name: s.name, type: s.type }],
+      status: 'online',
+    });
+    statusIndex++;
+  };
+  statusGuncelle();
+  setInterval(statusGuncelle, 30000); // 30 saniyede bir degis
 
   const { arsivdenYukle } = require('./handlers/arsiv');
   for (const [, guild] of client.guilds.cache) {
