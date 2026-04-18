@@ -232,6 +232,35 @@ const komutDetaylari = {
     parametreler: ['**kullanici** — Opsiyonel, boş bırakırsan kendi sayaçların'],
     renk: 0x5865F2,
   },
+  // ─── Davet Sistemi ───
+  davet: {
+    baslik: '🎟️ /davet — Davet Bilgileri',
+    aciklama: 'Bir kullanıcının davet istatistiklerini gösterir. Gerçek, sahte, toplam davet sayısı.',
+    kullanim: '`/davet` veya `/davet kullanici:@kişi`',
+    parametreler: ['**kullanici** — Opsiyonel, boş bırakırsan kendin'],
+    renk: 0x5865F2,
+  },
+  davetlerim: {
+    baslik: '📋 /davetlerim — Davet Listesi',
+    aciklama: 'Davet ettiğin son kişileri gösterir. Sahte olanlar işaretli.',
+    kullanim: '`/davetlerim`',
+    parametreler: [],
+    renk: 0x5865F2,
+  },
+  davetlider: {
+    baslik: '🏆 /davetlider — Davet Sıralaması',
+    aciklama: 'Sunucuda en çok davet yapanları sıralar.',
+    kullanim: '`/davetlider` veya `/davetlider sayi:15`',
+    parametreler: ['**sayi** — Kaç kişi listelensin (1-25, varsayılan: 10)'],
+    renk: 0xF1C40F,
+  },
+  davetodul: {
+    baslik: '🎁 /davetodul — Davet Ödülleri',
+    aciklama: 'Davet ödül sistemini gösterir. Kaç davete ne rol verilir.',
+    kullanim: '`/davetodul`',
+    parametreler: [],
+    renk: 0xE67E22,
+  },
 };
 
 // ─── KATEGORİ TANIMLARI ───
@@ -249,6 +278,13 @@ const kategoriler = {
     baslik: '🎉 Eğlence Komutları',
     aciklama: 'Eğlence amaçlı komutlar:',
     komutlar: ['hero', 'duello', 'etkilesim_liste', 'tepki_liste', 'anime_liste', 'sayac'],
+  },
+  davet: {
+    label: '🎟️ Davet',
+    renk: 0x5865F2,
+    baslik: '🎟️ Davet Sistemi',
+    aciklama: 'Davet takibi ve ödül komutları:',
+    komutlar: ['davet', 'davetlerim', 'davetlider', 'davetodul'],
   },
   kayit: {
     label: '📋 Kayıt',
@@ -301,6 +337,7 @@ function getKategoriRow(aktifKategori, yetkili) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('yardim_kat_genel').setLabel('📖 Genel').setStyle(aktifKategori === 'genel' ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('yardim_kat_eglence').setLabel('🎉 Eğlence').setStyle(aktifKategori === 'eglence' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('yardim_kat_davet').setLabel('🎟️ Davet').setStyle(aktifKategori === 'davet' ? ButtonStyle.Primary : ButtonStyle.Secondary),
   );
   if (yetkili) {
     row1.addComponents(
