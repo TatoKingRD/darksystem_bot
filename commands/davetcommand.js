@@ -1,6 +1,6 @@
 // commands/davet.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const davetHandler = require('../handlers/davet');
+const davetHandler = require('../handlers/davethandler');
 
 // ─── /davet ───
 const davetData = new SlashCommandBuilder()
