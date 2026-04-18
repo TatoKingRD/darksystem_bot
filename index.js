@@ -121,7 +121,7 @@ client.once('ready', async () => {
     statusIndex++;
   };
   statusGuncelle();
-  setInterval(statusGuncelle, 30000); // 30 saniyede bir degis
+  setInterval(statusGuncelle, 10000); // 10 saniyede bir degis
 
   const { arsivdenYukle } = require('./handlers/arsiv');
   for (const [, guild] of client.guilds.cache) {
