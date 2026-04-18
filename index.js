@@ -2,7 +2,13 @@ const { Client, GatewayIntentBits, Partials, ActivityType, REST, Routes, Collect
 require('dotenv').config();
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildInvites,
+  ],
   partials: [Partials.Channel, Partials.Message]
 });
 
@@ -28,6 +34,7 @@ const commandModules = [
   ...require('./commands/rol').commands,
   ...require('./commands/tekrarla').commands,
   ...require('./commands/yonetim').commands,
+  ...require('./commands/davet').commands,
 ];
 
 const allCommandData = [];
@@ -70,11 +77,27 @@ client.on('messageCreate', (message) => {
 // Yeni üye
 const hosgeldinGonder = require('./commands/hosgeldin');
 const dmHatirlatmaBaslat = require('./commands/dmHatirlatma');
+const davetHandler = require('./handlers/davet');
 
 client.on('guildMemberAdd', async (member) => {
   if (process.env.KAYITSIZ_ROL_ID) await member.roles.add(process.env.KAYITSIZ_ROL_ID).catch(console.error);
   await hosgeldinGonder(member);
   dmHatirlatmaBaslat(member);
+  // Davet takibi
+  await davetHandler.uyeKatildi(member).catch(err => console.error('[davet] uyeKatildi:', err));
+});
+
+// Üye ayrıldığında
+client.on('guildMemberRemove', async (member) => {
+  await davetHandler.uyeAyrildi(member).catch(err => console.error('[davet] uyeAyrildi:', err));
+});
+
+// Davet olusturuldu/silindi - cache'i guncelle
+client.on('inviteCreate', async (invite) => {
+  if (invite.guild) await davetHandler.davetleriCachele(invite.guild).catch(() => {});
+});
+client.on('inviteDelete', async (invite) => {
+  if (invite.guild) await davetHandler.davetleriCachele(invite.guild).catch(() => {});
 });
 
 client.once('ready', async () => {
@@ -134,6 +157,9 @@ client.once('ready', async () => {
 
   const { gorevleriYukle } = require('./commands/tekrarla');
   await gorevleriYukle(client).catch(console.error);
+
+  // Davet takibi baslat
+  await davetHandler.baslat(client).catch(console.error);
 });
 
 client.login(process.env.BOT_TOKEN);
