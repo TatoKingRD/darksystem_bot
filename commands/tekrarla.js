@@ -44,6 +44,40 @@ async function kanalданSil(client, mesajId) {
   await gorevKanal.messages.delete(mesajId).catch(() => {});
 }
 
+// Slash komut ID cache: komutAdi -> "<komut:ID>"
+const komutLinkCache = new Map();
+
+// Disboard gibi baska botlarin komut ID'lerini ara
+async function komutLinkiBul(client, kanal, komutAdi) {
+  if (komutLinkCache.has(komutAdi)) return komutLinkCache.get(komutAdi);
+
+  const addCache = (val) => { komutLinkCache.set(komutAdi, val); return val; };
+
+  // 1) Kendi botumuzun komutlari
+  try {
+    const appCommands = await client.application.commands.fetch().catch(() => null);
+    if (appCommands) {
+      const bulunan = appCommands.find(c => c.name === komutAdi);
+      if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`);
+    }
+  } catch {}
+
+  // 2) Guild'in diger botlarinin komutlari (disboard vs.)
+  try {
+    const guild = kanal.guild;
+    if (guild) {
+      const guildCommands = await guild.commands.fetch().catch(() => null);
+      if (guildCommands) {
+        const bulunan = guildCommands.find(c => c.name === komutAdi);
+        if (bulunan) return addCache(`</${komutAdi}:${bulunan.id}>`);
+      }
+    }
+  } catch {}
+
+  // Bulunamadiysa sadece metinsel goster
+  return addCache(`\`/${komutAdi}\``);
+}
+
 function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = null) {
   if (aktifGorevler.has(komutAdi)) {
     clearInterval(aktifGorevler.get(komutAdi).interval);
@@ -59,12 +93,14 @@ function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = nul
       if (modRolId) { pingParcalar.push(`<@&${modRolId}>`); izinVerilen.push(modRolId); }
       if (asisRolId) { pingParcalar.push(`<@&${asisRolId}>`); izinVerilen.push(asisRolId); }
 
+      const komutLink = await komutLinkiBul(kanal.client, kanal, komutAdi);
+
       await kanal.send({
         content: pingParcalar.join(' '),
         embeds: [new EmbedBuilder()
           .setTitle('🔔 Hatırlatma!')
           .setColor(0xF39C12)
-          .setDescription(`\`/${komutAdi}\` komutunu çalıştırma zamanı geldi!`)
+          .setDescription(`${komutLink} komutunu çalıştırma zamanı geldi!\n\n👆 Yukarıdaki komuta tıklayarak hemen çalıştırabilirsin.`)
           .addFields(
             { name: '⏱️ Tekrar Süresi', value: `${sure} dakikada bir`, inline: true },
             { name: '▶️ Başlatan', value: `<@${baslatanId}>`, inline: true }
