@@ -34,7 +34,7 @@ const commandModules = [
   ...require('./commands/rol').commands,
   ...require('./commands/tekrarla').commands,
   ...require('./commands/yonetim').commands,
-  ...require('./commands/davet').commands,
+  ...require('./commands/davetcommand').commands,
 ];
 
 const allCommandData = [];
@@ -77,7 +77,7 @@ client.on('messageCreate', (message) => {
 // Yeni üye
 const hosgeldinGonder = require('./commands/hosgeldin');
 const dmHatirlatmaBaslat = require('./commands/dmHatirlatma');
-const davetHandler = require('./handlers/davet');
+const davetHandler = require('./handlers/davethandler');
 
 client.on('guildMemberAdd', async (member) => {
   if (process.env.KAYITSIZ_ROL_ID) await member.roles.add(process.env.KAYITSIZ_ROL_ID).catch(console.error);
