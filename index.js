@@ -35,6 +35,7 @@ const commandModules = [
   ...require('./commands/tekrarla').commands,
   ...require('./commands/yonetim').commands,
   ...require('./commands/davetcommand').commands,
+  ...require('./commands/alysa').commands,
 ];
 
 const allCommandData = [];
@@ -88,8 +89,10 @@ client.on('guildMemberAdd', async (member) => {
 });
 
 // Üye ayrıldığında
+const gorusuruzGonder = require('./handlers/gorusuruz');
 client.on('guildMemberRemove', async (member) => {
   await davetHandler.uyeAyrildi(member).catch(err => console.error('[davet] uyeAyrildi:', err));
+  await gorusuruzGonder(member).catch(err => console.error('[gorusuruz] hata:', err));
 });
 
 // Davet olusturuldu/silindi - cache'i guncelle
@@ -160,6 +163,10 @@ client.once('ready', async () => {
 
   // Davet takibi baslat
   await davetHandler.baslat(client).catch(console.error);
+
+  // Alysa modu verilerini yukle
+  const alysaKisilik = require('./ai/alysaKisilik');
+  await alysaKisilik.veriYukle(client).catch(console.error);
 });
 
 client.login(process.env.BOT_TOKEN);
