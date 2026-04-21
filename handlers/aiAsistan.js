@@ -128,7 +128,23 @@ module.exports = async function aiAsistan(message, client) {
 
   const gecmis = await gecmisiGetir(client, message.author.id);
 
-  let sistemIcerik = SISTEM_MESAJI + `\n\nMEVCUT_KANAL: ${message.channel.name}`;
+  // Alysa modu acik mi kontrol et (opsiyonel modul)
+  let alysaAcik = false;
+  let alysaKisilikMod = null;
+  try {
+    alysaKisilikMod = require('../ai/alysaKisilik');
+    alysaAcik = await alysaKisilikMod.modAcikMi(client, message.author.id).catch(() => false);
+  } catch {
+    // Modul yok, normal kisilik kullan
+  }
+
+  let sistemIcerik;
+  if (alysaAcik && alysaKisilikMod) {
+    sistemIcerik = alysaKisilikMod.ALYSA_SISTEM_MESAJI + `\n\nCURRENT_CHANNEL: ${message.channel.name}`;
+  } else {
+    sistemIcerik = SISTEM_MESAJI + `\n\nMEVCUT_KANAL: ${message.channel.name}`;
+  }
+
   if (yanitlananMesajId) {
     sistemIcerik += `\nYANITLANAN_MESAJ_ID: ${yanitlananMesajId} (kullanıcı bir mesaja reply atmış; mesaj_id gereken komutlarda bu ID'yi kullanabilirsin)`;
   }
