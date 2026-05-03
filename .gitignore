@@ -12,6 +12,7 @@ data/*.sqlite
 data/*.sqlite-*
 backups/
 .tmp/
+logs/
 
 *.log
 *.local

@@ -2,7 +2,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const roots = ['index.js', 'ai', 'commands', 'core', 'data', 'handlers', 'scripts'];
+const roots = ['index.js', 'ecosystem.config.cjs', 'ai', 'commands', 'core', 'data', 'handlers', 'scripts'];
 const files = [];
 
 for (const root of roots) {
@@ -23,7 +23,7 @@ console.log(`Syntax check passed for ${files.length} JavaScript files.`);
 function collectJsFiles(target, output) {
   const stat = fs.statSync(target);
   if (stat.isFile()) {
-    if (target.endsWith('.js')) output.push(target);
+    if (target.endsWith('.js') || target.endsWith('.cjs')) output.push(target);
     return;
   }
   for (const entry of fs.readdirSync(target)) {

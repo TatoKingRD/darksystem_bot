@@ -6,7 +6,14 @@
     "start": "node index.js",
     "lint": "node scripts/darksystem-check.js",
     "smoke": "node scripts/darksystem-smoke.js",
-    "check": "npm run lint && npm run smoke"
+    "check": "npm run lint && npm run smoke",
+    "preflight": "node scripts/darksystem-vps-preflight.js",
+    "db:init": "node scripts/darksystem-db-maintenance.js init",
+    "db:status": "node scripts/darksystem-db-maintenance.js status",
+    "db:backup": "node scripts/darksystem-db-maintenance.js backup",
+    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
+    "pm2:restart": "pm2 restart darksystem-bot",
+    "pm2:logs": "pm2 logs darksystem-bot"
   },
   "engines": {
     "node": ">=22.5.0"
