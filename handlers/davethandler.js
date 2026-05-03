@@ -59,6 +59,24 @@ async function davetleriCachele(guild) {
 async function verileriYukle(client) {
   if (veriYuklendi) return;
   veriYuklendi = true;
+  const repo = client.darkRepositories?.invites;
+  const guildId = client.darkConfig?.guildId;
+  if (repo && guildId) {
+    for (const row of repo.loadUsers(guildId)) {
+      davetVerisi.set(row.user_id, {
+        davetSayisi: row.real_count || 0,
+        sahteDavet: row.fake_count || 0,
+        davetEdilenler: [],
+      });
+    }
+    for (const row of repo.loadMemberLinks(guildId)) {
+      uyeDavetKaydi.set(row.member_id, {
+        davetEdenId: row.inviter_id,
+        kodId: row.invite_code,
+        zaman: row.joined_at,
+      });
+    }
+  }
   const kanalId = logKanalIdAl();
   if (!kanalId) {
     console.warn('[davet] DAVET_LOG_KANAL_ID tanimli degil, veriler restart\'ta sifirlanacak.');
@@ -98,6 +116,7 @@ let kayitZamanlayici = null;
 let kayitMesajId = null;
 
 function verileriKaydet(client) {
+  persistDavetVerisi(client);
   if (kayitZamanlayici) return;
   kayitZamanlayici = setTimeout(async () => {
     kayitZamanlayici = null;
@@ -152,6 +171,22 @@ function verileriKaydet(client) {
       console.error('[davet] Kayit hatasi:', e.message);
     }
   }, 5000);
+}
+
+function persistDavetVerisi(client) {
+  const repo = client.darkRepositories?.invites;
+  const guildId = client.darkConfig?.guildId;
+  if (!repo || !guildId) return;
+  try {
+    for (const [userId, veri] of davetVerisi.entries()) {
+      repo.upsertUser(guildId, userId, veri.davetSayisi || 0, veri.sahteDavet || 0);
+    }
+    for (const [memberId, kayit] of uyeDavetKaydi.entries()) {
+      repo.upsertMemberLink(guildId, memberId, kayit);
+    }
+  } catch (error) {
+    console.error('[davet] SQLite persist hatasi:', error.message);
+  }
 }
 
 // ─── ROL ODUL SISTEMI ───

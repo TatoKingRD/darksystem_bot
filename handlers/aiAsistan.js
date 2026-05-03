@@ -50,7 +50,7 @@ module.exports = async function aiAsistan(message, client) {
   const soru = message.content.replace(botMention, '').replace(botMentionNick, '').trim();
   if (!soru) return message.reply('Merhaba! 👋 Nasıl yardımcı olabilirim?');
 
-  const sahipIdler = (process.env.AI_SAHIP_ID || '')
+  const sahipIdler = (process.env.OWNER_IDS || process.env.AI_SAHIP_ID || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   const islemYetkisi = sahipIdler.includes(message.author.id);
   if (sahipIdler.length === 0) {
@@ -195,6 +195,12 @@ module.exports = async function aiAsistan(message, client) {
 
     // Onaysız işlemler direkt uygula
     if (ONAYSIZ.includes(islemAdi)) {
+      message.client?.darkRepositories?.audit?.add('ai_tool_executed_without_button', {
+        guildId: message.guild?.id,
+        actorId: message.author.id,
+        targetId: islemAdi,
+        details: { parametreler },
+      });
       const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild, message);
       // Geçmişe ekle
       gecmis.push({ role: 'user', content: soru });
@@ -247,6 +253,12 @@ module.exports = async function aiAsistan(message, client) {
       let parametreler = {};
       try { parametreler = JSON.parse(match[2] || '{}'); } catch {}
       if (ONAYSIZ.includes(islemAdi)) {
+        message.client?.darkRepositories?.audit?.add('ai_tool_executed_without_button', {
+          guildId: message.guild?.id,
+          actorId: message.author.id,
+          targetId: islemAdi,
+          details: { parametreler },
+        });
         const sonucMesaj = await islemUygula(islemAdi, parametreler, message.guild, message);
         await sonucGonder(message, sonucMesaj);
       } else {

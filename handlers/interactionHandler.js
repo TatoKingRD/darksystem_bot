@@ -22,7 +22,21 @@ module.exports = async function interactionHandler(client, interaction) {
   }
 
   const kayitVerisi = client.kayitVerisi;
+  const repositories = client.darkRepositories || {};
 
+
+  if (interaction.isButton() && interaction.customId.startsWith('cekilis_katil_')) {
+    const giveawayId = interaction.customId.replace('cekilis_katil_', '');
+    const giveaway = repositories.giveaways?.get(giveawayId);
+    if (!giveaway || giveaway.status !== 'active') {
+      return interaction.reply({ content: 'Bu cekilis aktif degil.', ephemeral: true });
+    }
+    const added = repositories.giveaways.addEntry(giveawayId, interaction.user.id);
+    return interaction.reply({
+      content: added ? 'Cekilise katildin.' : 'Bu cekilise zaten katildin.',
+      ephemeral: true,
+    });
+  }
 
 
   // ─── AI ASISTAN ONAY BUTONLARI ───
@@ -50,7 +64,15 @@ module.exports = async function interactionHandler(client, interaction) {
       await interaction.deferUpdate();
       await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('⏳ Uygulanıyor...').setColor(0x5865F2)], components: [] });
       // mesaj_gonder gibi fonksiyonların mevcut kanala düşebilmesi için pseudo-message
-      const psuedoMessage = bekleyen.channel ? { channel: bekleyen.channel } : null;
+      const psuedoMessage = bekleyen.channel
+        ? { channel: bekleyen.channel, client, author: interaction.user, member: interaction.member }
+        : null;
+      repositories.audit?.add('ai_tool_approved', {
+        guildId: bekleyen.guild?.id,
+        actorId: interaction.user.id,
+        targetId: bekleyen.islemAdi,
+        details: { parametreler: bekleyen.parametreler },
+      });
       const sonuc = await islemUygula(bekleyen.islemAdi, bekleyen.parametreler, bekleyen.guild, psuedoMessage);
       bekleyenIslemler.delete(interaction.message.id);
       await interaction.editReply({ embeds: [new EmbedBuilder().setTitle('📋 Sonuç').setDescription(sonuc).setColor(sonuc.startsWith('✅') ? 0x57F287 : 0xFF0000)] });
@@ -130,15 +152,32 @@ module.exports = async function interactionHandler(client, interaction) {
     let bOy = parseInt(bField?.value) || 0;
 
     const oyVerenler = embed.image?.url?.replace('https://oyverenler.placeholder/', '')?.split(',').filter(Boolean) || [];
+    const secimKey = interaction.customId === 'anket_a' ? 'a' : 'b';
+    const legacyAOy = aOy;
+    const legacyBOy = bOy;
+    const legacyOySaklaniyor = Boolean(embed.image?.url?.startsWith('https://oyverenler.placeholder/'));
 
-    if (oyVerenler.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ Zaten oy verdin!', ephemeral: true });
+    if (repositories.polls && !legacyOySaklaniyor) {
+      const mevcutSayilar = repositories.polls.counts(msg.id);
+      const dbdeOyVar = Object.keys(mevcutSayilar).length > 0;
+      if (!dbdeOyVar && oyVerenler.includes(interaction.user.id)) {
+        return interaction.reply({ content: 'Zaten oy verdin!', ephemeral: true });
+      }
+      const kaydedildi = repositories.polls.addVote(msg.id, interaction.user.id, secimKey);
+      if (!kaydedildi) return interaction.reply({ content: 'Zaten oy verdin!', ephemeral: true });
+      const yeniSayilar = repositories.polls.counts(msg.id);
+      aOy = (dbdeOyVar ? 0 : legacyAOy) + (yeniSayilar.a || 0);
+      bOy = (dbdeOyVar ? 0 : legacyBOy) + (yeniSayilar.b || 0);
+    } else {
+      if (oyVerenler.includes(interaction.user.id)) {
+        return interaction.reply({ content: '❌ Zaten oy verdin!', ephemeral: true });
+      }
+
+      if (interaction.customId === 'anket_a') aOy++;
+      if (interaction.customId === 'anket_b') bOy++;
+
+      oyVerenler.push(interaction.user.id);
     }
-
-    if (interaction.customId === 'anket_a') aOy++;
-    if (interaction.customId === 'anket_b') bOy++;
-
-    oyVerenler.push(interaction.user.id);
     const toplamOy = aOy + bOy;
     const aYuzde = toplamOy > 0 ? Math.round((aOy / toplamOy) * 100) : 0;
     const bYuzde = toplamOy > 0 ? Math.round((bOy / toplamOy) * 100) : 0;
@@ -153,10 +192,10 @@ module.exports = async function interactionHandler(client, interaction) {
         { name: aField.name, value: `${aOy} oy (${aYuzde}%)`, inline: true },
         { name: bField.name, value: `${bOy} oy (${bYuzde}%)`, inline: true },
       )
-      .setImage('https://oyverenler.placeholder/' + oyVerenler.join(','))
       .setFooter({ text: embed.footer.text })
       .setTimestamp(embed.timestamp ? new Date(embed.timestamp) : null);
 
+    if (!repositories.polls) yeniEmbed.setImage('https://oyverenler.placeholder/' + oyVerenler.join(','));
     if (aciklama) yeniEmbed.setDescription(aciklama);
     await msg.edit({ embeds: [yeniEmbed] });
     return interaction.reply({ content: `✅ Oyun kaydedildi! (${secilen?.replace(/🅰️ |🅱️ /, '')})`, ephemeral: true });

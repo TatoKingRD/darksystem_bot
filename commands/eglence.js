@@ -72,6 +72,22 @@ let veriYuklendi = false;
 async function sayaclariYukle(client) {
   if (veriYuklendi) return;
   veriYuklendi = true;
+  const guildId = client.darkConfig?.guildId;
+  const repo = client.darkRepositories?.funCounters;
+  if (guildId && repo) {
+    for (const row of repo.loadAll(guildId)) {
+      if (!sayacVerisi.has(row.user_id)) sayacVerisi.set(row.user_id, {});
+      const kullanici = sayacVerisi.get(row.user_id);
+      if (row.target_user_id) {
+        if (!kullanici[row.command_name] || typeof kullanici[row.command_name] !== 'object') {
+          kullanici[row.command_name] = {};
+        }
+        kullanici[row.command_name][row.target_user_id] = row.count;
+      } else {
+        kullanici[row.command_name] = row.count;
+      }
+    }
+  }
   const kanalId = process.env.EGLENCE_LOG_KANAL_ID || process.env.MOD_LOG_KANAL_ID;
   if (!kanalId) {
     console.warn('[eglence] EGLENCE_LOG_KANAL_ID tanimli degil, sayaclar restart\'ta sifirlanacak.');
@@ -106,6 +122,7 @@ async function sayaclariYukle(client) {
 
 let kayitZamanlayici = null;
 function sayaclariKaydet(client) {
+  persistSayaclar(client);
   if (kayitZamanlayici) return;
   kayitZamanlayici = setTimeout(async () => {
     kayitZamanlayici = null;
@@ -176,6 +193,27 @@ function sayaclariKaydet(client) {
       console.error('[eglence] Sayac kayit hatasi:', e.message);
     }
   }, 10000);
+}
+
+function persistSayaclar(client) {
+  const guildId = client.darkConfig?.guildId;
+  const repo = client.darkRepositories?.funCounters;
+  if (!guildId || !repo) return;
+  try {
+    for (const [userId, veri] of sayacVerisi.entries()) {
+      for (const [komut, deger] of Object.entries(veri)) {
+        if (typeof deger === 'object') {
+          for (const [targetId, count] of Object.entries(deger)) {
+            repo.setCount(guildId, userId, komut, targetId, count);
+          }
+        } else {
+          repo.setCount(guildId, userId, komut, '', deger);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[eglence] SQLite persist hatasi:', error.message);
+  }
 }
 
 function sayacArttir(kullaniciId, komut, hedefId) {

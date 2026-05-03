@@ -35,11 +35,11 @@ async function anketExecute(interaction) {
       { name: `🅰️ ${sec1}`, value: '0 oy', inline: true },
       { name: `🅱️ ${sec2}`, value: '0 oy', inline: true },
     )
-    .setImage('https://oyverenler.placeholder/')
     .setFooter({ text: `Anketi oluşturan: ${interaction.user.tag}` })
     .setTimestamp();
 
   if (aciklama) embed.setDescription(aciklama);
+  if (!interaction.client.darkRepositories?.polls) embed.setImage('https://oyverenler.placeholder/');
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('anket_a').setLabel(`🅰️ ${sec1}`).setStyle(ButtonStyle.Primary),
@@ -84,9 +84,12 @@ async function anketOylarExecute(interaction) {
   const embed = bulunanMesaj.embeds[0];
   if (!embed) return interaction.editReply({ content: '❌ Bu bir anket mesajı değil.' });
 
-  const oyVerenler = embed.image?.url
-    ?.replace('https://oyverenler.placeholder/', '')
-    ?.split(',').filter(Boolean) || [];
+  const dbOyVerenler = interaction.client.darkRepositories?.polls?.voters(mesajId) || [];
+  const oyVerenler = dbOyVerenler.length > 0
+    ? dbOyVerenler.map((vote) => vote.user_id)
+    : (embed.image?.url
+      ?.replace('https://oyverenler.placeholder/', '')
+      ?.split(',').filter(Boolean) || []);
 
   if (oyVerenler.length === 0) {
     return interaction.editReply({ content: '📊 Bu ankete henüz oy veren yok.' });

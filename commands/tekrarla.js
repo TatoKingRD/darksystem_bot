@@ -144,6 +144,25 @@ function gorevBaslat(komutAdi, kanal, sure, baslatanId, baslangic, mesajId = nul
 
 // Bot restart'ta görev kanalından görevleri yükle
 async function gorevleriYukle(client) {
+  const guildId = client.darkConfig?.guildId;
+  if (guildId && client.darkRepositories?.reminders) {
+    const dbGorevleri = client.darkRepositories.reminders.listActive(guildId);
+    for (const gorev of dbGorevleri) {
+      if (aktifGorevler.has(gorev.command_name)) continue;
+      const kanal = await client.channels.fetch(gorev.channel_id).catch(() => null);
+      if (!kanal) continue;
+      gorevBaslat(
+        gorev.command_name,
+        kanal,
+        gorev.minutes,
+        gorev.started_by,
+        gorev.started_at,
+        gorev.message_id
+      );
+    }
+    if (dbGorevleri.length > 0) console.log(`${dbGorevleri.length} SQLite hatırlatma görevi yüklendi.`);
+  }
+
   const gorevKanal = client.channels.cache.get(process.env.GOREV_KANAL_ID);
   if (!gorevKanal) { console.log('GOREV_KANAL_ID bulunamadı, görevler yüklenemedi.'); return; }
 
@@ -202,6 +221,13 @@ async function tekrarlaExecute(interaction) {
 
   const mesajId = await kanalaKaydet(interaction.client, komutAdi, kanal.id, sure, interaction.user.id, baslangic);
   gorevBaslat(komutAdi, kanal, sure, interaction.user.id, baslangic, mesajId);
+  interaction.client.darkRepositories?.reminders?.upsert(interaction.guildId, komutAdi, {
+    channelId: kanal.id,
+    minutes: sure,
+    startedBy: interaction.user.id,
+    startedAt: baslangic,
+    messageId: mesajId,
+  });
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('✅ Görev Başlatıldı')
@@ -231,6 +257,7 @@ async function durdurExecute(interaction) {
   clearInterval(gorev.interval);
   await kanalданSil(interaction.client, gorev.mesajId);
   aktifGorevler.delete(komutAdi);
+  interaction.client.darkRepositories?.reminders?.deactivate(interaction.guildId, komutAdi);
 
   await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
     .setTitle('⏹️ Görev Durduruldu')

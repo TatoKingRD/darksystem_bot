@@ -361,13 +361,6 @@ const ONAYSIZ = [
   // Okuma / listeleme
   'kanal_listele', 'sunucu_istatistik', 'rol_listele', 'uye_listele',
   'kullanici_bilgi', 'kullanici_uyarilari', 'kullanici_sure', 'hava_durumu',
-  // Zararsız yazma
-  'mesaj_gonder', 'mesaj_sabitle', 'kanal_yavasla',
-  'kanal_olustur', 'kanal_temizle', 'kanal_tek_temizle',
-  'kanal_emoji_ekle', 'kanal_kategori_duzenle',
-  'anket_olustur', 'cekilis_baslat', 'nick_degistir',
-  // Slash komut cagirma (icindeki komutun zararli olup olmadigini kullanici slash yetkisiyle kendi kontrol ediyor)
-  'slash_komut_calistir',
 ];
 
 // Dinamik olarak commands/ klasorundeki slash komutlarini tarayip ARACLAR listesine ekler.

@@ -29,7 +29,9 @@ async function uyarExecute(interaction) {
   const mevcutUyarilar = uyariVerisi.get(hedef.id) || [];
   mevcutUyarilar.push({ sebep, moderator: interaction.user.id, tarih: Math.floor(Date.now() / 1000) });
   uyariVerisi.set(hedef.id, mevcutUyarilar);
-  const toplamUyari = mevcutUyarilar.length;
+  const warningRepo = interaction.client.darkRepositories?.warnings;
+  warningRepo?.add(interaction.guildId, hedef.id, interaction.user.id, sebep);
+  const toplamUyari = warningRepo ? warningRepo.list(interaction.guildId, hedef.id).length : mevcutUyarilar.length;
 
   await hedef.send({ embeds: [new EmbedBuilder()
     .setTitle('⚠️ Uyarı Aldın!')
@@ -93,7 +95,14 @@ async function uyarilarExecute(interaction) {
   const hedef = interaction.options.getMember('kullanici');
   if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
 
-  const uyarilar = uyariVerisi.get(hedef.id);
+  const dbUyarilar = interaction.client.darkRepositories?.warnings?.list(interaction.guildId, hedef.id) || [];
+  const uyarilar = dbUyarilar.length > 0
+    ? dbUyarilar.map((row) => ({
+      sebep: row.sebep || 'Sebep belirtilmedi',
+      moderator: row.moderator_id || 'bilinmiyor',
+      tarih: row.created_at,
+    }))
+    : uyariVerisi.get(hedef.id);
   if (!uyarilar || uyarilar.length === 0) {
     return interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
       .setTitle('✅ Temiz Sicil')
@@ -137,6 +146,19 @@ async function uyarisilExecute(interaction) {
   if (!hedef) return interaction.reply({ content: '❌ Kullanıcı bulunamadı.', ephemeral: true });
 
   const numara = interaction.options.getInteger('numara');
+  const dbSilinen = interaction.client.darkRepositories?.warnings?.removeByNumber(interaction.guildId, hedef.id, numara);
+  if (dbSilinen) {
+    return interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
+      .setTitle('🗑️ Uyarı Silindi')
+      .setColor(0x57F287)
+      .addFields(
+        { name: '👤 Kullanıcı', value: `<@${hedef.id}>`, inline: true },
+        { name: '📋 Silinen Sebep', value: dbSilinen.sebep || 'Sebep belirtilmedi', inline: true }
+      )
+      .setTimestamp()]
+    });
+  }
+
   const uyarilar = uyariVerisi.get(hedef.id);
 
   if (!uyarilar || uyarilar.length === 0) return interaction.reply({ content: '❌ Bu kullanıcının uyarısı yok.', ephemeral: true });

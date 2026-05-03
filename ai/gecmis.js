@@ -5,6 +5,9 @@ const { EmbedBuilder } = require('discord.js');
 const konusmaTarihi = new Map();
 
 async function gecmisiKanaldenYukle(client, userId) {
+  const dbHistory = client.darkRepositories?.aiHistory?.get(userId, 20);
+  if (dbHistory?.length) return dbHistory;
+
   const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
   if (!kanal) return [];
   let lastId = null;
@@ -30,6 +33,8 @@ async function gecmisiKanaldenYukle(client, userId) {
 }
 
 async function gecmisiKanalaKaydet(client, userId, gecmis) {
+  client.darkRepositories?.aiHistory?.replace(userId, gecmis, 20);
+
   const kanal = client.channels.cache.get(process.env.AI_ARSIV_KANAL_ID);
   if (!kanal) return;
   // Eskisini sil

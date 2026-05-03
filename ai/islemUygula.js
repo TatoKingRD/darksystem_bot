@@ -476,6 +476,7 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
         if (!kanal) return `❌ "${parametreler.kanal_adi}" kanalı bulunamadı.`;
         const sure = Math.max(1, parametreler.sure_dakika || 1);
         const bitis = Math.floor(Date.now() / 1000) + (sure * 60);
+        const giveawayId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const embed = new EmbedBuilder()
           .setTitle('🎁 ÇEKİLİŞ BAŞLADI!')
           .setDescription(`**Ödül:** ${parametreler.odul}\n\n🎉 Katılmak için aşağıdaki butona tıkla!\n\n⏰ Bitiş: <t:${bitis}:R>`)
@@ -483,30 +484,39 @@ async function islemUygula(islemAdi, parametreler, guild, message = null) {
           .setFooter({ text: `Süre: ${sure} dakika` })
           .setTimestamp();
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`cekilis_katil_${Date.now()}`).setLabel('🎉 Katıl!').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(`cekilis_katil_${giveawayId}`).setLabel('🎉 Katıl!').setStyle(ButtonStyle.Success),
         );
         const cekilisMsg = await kanal.send({ embeds: [embed], components: [row] });
+        message?.client?.darkRepositories?.giveaways?.create({
+          giveawayId,
+          messageId: cekilisMsg.id,
+          guildId: guild.id,
+          channelId: kanal.id,
+          prize: parametreler.odul,
+          endsAt: bitis,
+          createdBy: message?.author?.id || null,
+        });
 
         // Süre bitince kazananı seç
         setTimeout(async () => {
           const guncelleMesaj = await kanal.messages.fetch(cekilisMsg.id).catch(() => null);
           if (!guncelleMesaj) return;
 
-          // Butona basanları topla (reaction yerine collector kullanmak gerekir ama basit versiyon)
-          const katilimcilar = [];
-          // Mesaj reactions'dan değil, component interaction'dan tutulmuyor - basit versiyon
-          // Kazananı üye listesinden rastgele seç
-          await guild.members.fetch();
-          const uyeler = guild.members.cache.filter(m => !m.user.bot).map(m => m);
-          const kazanan = uyeler[Math.floor(Math.random() * uyeler.length)];
+          const katilimcilar = message?.client?.darkRepositories?.giveaways?.entries(giveawayId) || [];
+          const kazananId = katilimcilar.length
+            ? katilimcilar[Math.floor(Math.random() * katilimcilar.length)]
+            : null;
+          message?.client?.darkRepositories?.giveaways?.finish(giveawayId, kazananId);
 
           const sonucEmbed = new EmbedBuilder()
             .setTitle('🎊 ÇEKİLİŞ SONA ERDİ!')
-            .setDescription(`**Ödül:** ${parametreler.odul}\n\n🏆 Kazanan: <@${kazanan.id}>\n\nTebrikler!`)
+            .setDescription(kazananId
+              ? `**Ödül:** ${parametreler.odul}\n\n🏆 Kazanan: <@${kazananId}>\n\nTebrikler!`
+              : `**Ödül:** ${parametreler.odul}\n\nKatılımcı olmadığı için kazanan seçilemedi.`)
             .setColor(0x2ECC71)
             .setTimestamp();
           await guncelleMesaj.edit({ embeds: [sonucEmbed], components: [] });
-          await kanal.send(`🎊 Tebrikler <@${kazanan.id}>! **${parametreler.odul}** ödülünü kazandın!`);
+          if (kazananId) await kanal.send(`🎊 Tebrikler <@${kazananId}>! **${parametreler.odul}** ödülünü kazandın!`);
         }, sure * 60 * 1000);
 
         return `✅ **#${kanal.name}** kanalında **${sure} dakika** sürecek çekiliş başlatıldı! Ödül: **${parametreler.odul}**`;
